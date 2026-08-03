@@ -12,9 +12,10 @@ import {
   Database,
   Plus,
   LayoutDashboard,
-  MessageSquare,
   X,
-  Loader2
+  Loader2,
+  Pencil,
+  Check
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -35,6 +36,9 @@ export default function CRMAtendimentoSlim() {
   const [atendimentoSelecionado, setAtendimentoSelecionado] = useState(null);
   const [novaEvolucao, setNovaEvolucao] = useState('');
   const [salvandoEvolucao, setSalvandoEvolucao] = useState(false);
+  const [editandoHistoricoId, setEditandoHistoricoId] = useState(null);
+  const [textoEdicao, setTextoEdicao] = useState('');
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
   const [salvandoNovo, setSalvandoNovo] = useState(false);
@@ -197,6 +201,48 @@ export default function CRMAtendimentoSlim() {
     setAtendimentoSelecionado(null);
   };
 
+  const handleReabrirAtendimento = async (id) => {
+    const { error } = await supabase
+      .from('atendimentos')
+      .update({ status: 'em_andamento', concluido_em: null })
+      .eq('id', id);
+
+    if (error) {
+      console.error(error);
+      alert('Erro ao reabrir atendimento. Veja o console.');
+      return;
+    }
+
+    setAtendimentos(prev => prev.map(item =>
+      item.id === id ? { ...item, status: 'em_andamento', concluidoEm: null } : item
+    ));
+    setAtendimentoSelecionado(prev => prev ? { ...prev, status: 'em_andamento', concluidoEm: null } : prev);
+  };
+
+  const handleEditarEvolucao = async (historicoId, novoTexto) => {
+    const { error } = await supabase
+      .from('historico_atendimento')
+      .update({ descricao: novoTexto })
+      .eq('id', historicoId);
+
+    if (error) {
+      console.error(error);
+      alert('Erro ao salvar a edição. Veja o console.');
+      return false;
+    }
+
+    const atualizarHistorico = (historico) =>
+      historico.map(h => h.id === historicoId ? { ...h, texto: novoTexto } : h);
+
+    setAtendimentos(prev => prev.map(item =>
+      item.id === atendimentoSelecionado.id
+        ? { ...item, historico: atualizarHistorico(item.historico) }
+        : item
+    ));
+    setAtendimentoSelecionado(prev => prev ? { ...prev, historico: atualizarHistorico(prev.historico) } : prev);
+    return true;
+  };
+
   const handleCriarClienteEAtendimento = async () => {
     if (!novoCliente.codigo_cliente.trim() || !novoCliente.razao_social.trim()) {
       alert('Preencha ao menos o código e a razão social.');
@@ -272,7 +318,7 @@ export default function CRMAtendimentoSlim() {
         <div className="max-w-6xl mx-auto flex justify-between items-center px-1">
           <div className="flex items-center space-x-2">
             <Database className="w-4 h-4 text-blue-400" />
-            <h1 className="font-bold tracking-tight text-sm md:text-base">CRM Consigaz & Atendimento</h1>
+            <h1 className="font-bold tracking-tight text-sm md:text-base">CRM Clientes</h1>
           </div>
           <button
             onClick={() => setModalNovoAberto(true)}
@@ -500,6 +546,10 @@ export default function CRMAtendimentoSlim() {
 
       </main>
 
+      <footer className="text-center text-[10px] text-slate-400 py-4">
+        © {new Date().getFullYear()} Diogo Soares. Todos os direitos reservados.
+      </footer>
+
       {/* Drawer Lateral de Histórico e Evolução */}
       {atendimentoSelecionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex justify-end z-50">
@@ -511,7 +561,7 @@ export default function CRMAtendimentoSlim() {
                 <h2 className="font-bold text-slate-800 text-sm leading-tight">{atendimentoSelecionado.razaoSocial}</h2>
               </div>
               <button
-                onClick={() => setAtendimentoSelecionado(null)}
+                onClick={() => { setAtendimentoSelecionado(null); setEditandoHistoricoId(null); }}
                 className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-4 h-4" />
@@ -545,6 +595,20 @@ export default function CRMAtendimentoSlim() {
               </div>
             )}
 
+            {atendimentoSelecionado.status === 'concluido' && (
+              <div className="p-3 border-b border-slate-100 bg-white flex justify-between items-center">
+                <span className="text-[11px] text-slate-500">
+                  Concluído {atendimentoSelecionado.concluidoEm ? `em ${new Date(atendimentoSelecionado.concluidoEm).toLocaleDateString('pt-BR')}` : ''}
+                </span>
+                <button
+                  onClick={() => handleReabrirAtendimento(atendimentoSelecionado.id)}
+                  className="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"
+                >
+                  <Clock className="w-3 h-3" /> Reabrir Atendimento
+                </button>
+              </div>
+            )}
+
             <div className="p-3 flex-1 overflow-y-auto space-y-2 bg-slate-50">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Histórico de Registros</span>
               {atendimentoSelecionado.historico.length === 0 && (
@@ -554,9 +618,49 @@ export default function CRMAtendimentoSlim() {
                 <div key={h.id} className="bg-white p-2.5 rounded border border-slate-200 space-y-1 shadow-2xs">
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>{h.data}</span>
-                    <MessageSquare className="w-3 h-3 text-slate-300" />
+                    {editandoHistoricoId !== h.id && (
+                      <button
+                        onClick={() => { setEditandoHistoricoId(h.id); setTextoEdicao(h.texto); }}
+                        className="text-slate-300 hover:text-blue-500"
+                        title="Editar registro"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-700">{h.texto}</p>
+
+                  {editandoHistoricoId === h.id ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        rows={2}
+                        value={textoEdicao}
+                        onChange={(e) => setTextoEdicao(e.target.value)}
+                        className="w-full p-1.5 border border-blue-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditandoHistoricoId(null)}
+                          className="text-[11px] text-slate-400 hover:text-slate-600 px-2 py-0.5"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setSalvandoEdicao(true);
+                            const ok = await handleEditarEvolucao(h.id, textoEdicao);
+                            setSalvandoEdicao(false);
+                            if (ok) setEditandoHistoricoId(null);
+                          }}
+                          disabled={salvandoEdicao || !textoEdicao.trim()}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1"
+                        >
+                          <Check className="w-3 h-3" /> {salvandoEdicao ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-700">{h.texto}</p>
+                  )}
                 </div>
               ))}
             </div>
