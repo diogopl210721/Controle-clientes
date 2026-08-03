@@ -33,7 +33,7 @@ export default function CRMAtendimentoSlim() {
 
   const [abaAtiva, setAbaAtiva] = useState('em_andamento'); // 'em_andamento' | 'concluido'
   const [busca, setBusca] = useState('');
-  const [filtroCritico, setFiltroCritico] = useState(false);
+  const [filtroModo, setFiltroModo] = useState('todos'); // 'todos' | 'critico' | 'contrato'
   const [atendimentoSelecionado, setAtendimentoSelecionado] = useState(null);
   const [novaEvolucao, setNovaEvolucao] = useState('');
   const [salvandoEvolucao, setSalvandoEvolucao] = useState(false);
@@ -58,6 +58,24 @@ export default function CRMAtendimentoSlim() {
   // Existe para cadastrar casos que já estavam em andamento antes de o sistema entrar no ar,
   // mantendo o contador de "dias em aberto" correto desde o início real da ocorrência.
   const [dataAberturaManual, setDataAberturaManual] = useState('');
+  const [novoAssunto, setNovoAssunto] = useState('');
+
+  // Edição de um atendimento/cliente já cadastrado
+  const [modalEditarAberto, setModalEditarAberto] = useState(false);
+  const [salvandoEdicaoCadastro, setSalvandoEdicaoCadastro] = useState(false);
+  const [atendimentoEmEdicao, setAtendimentoEmEdicao] = useState(null);
+  const [dadosEdicao, setDadosEdicao] = useState({
+    codigo_cliente: '',
+    razao_social: '',
+    nome_contato: '',
+    telefone: '',
+    endereco: '',
+    tipo_tanque: '',
+    consumo_medio: '',
+    data_inicio_contrato: '',
+    data_fim_contrato: '',
+    assunto: ''
+  });
 
   // -------------------------------------------------------
   // Busca dados reais no Supabase (clientes + atendimentos + histórico)
@@ -74,6 +92,7 @@ export default function CRMAtendimentoSlim() {
         created_at,
         concluido_em,
         cliente_id,
+        assunto,
         clientes ( * ),
         historico_atendimento ( id, descricao, created_at )
       `)
@@ -88,9 +107,11 @@ export default function CRMAtendimentoSlim() {
 
     const normalizados = (data || []).map((a) => ({
       id: a.id,
+      clienteId: a.cliente_id,
       status: a.status,
       createdAt: a.created_at,
       concluidoEm: a.concluido_em,
+      assunto: a.assunto ?? '',
       codigo: a.clientes?.codigo_cliente ?? '—',
       razaoSocial: a.clientes?.razao_social ?? 'Cliente sem cadastro',
       contato: a.clientes?.nome_contato ?? '',
@@ -98,6 +119,7 @@ export default function CRMAtendimentoSlim() {
       endereco: a.clientes?.endereco ?? '',
       tipoTanque: a.clientes?.tipo_tanque ?? '',
       consumo: a.clientes?.consumo_medio ?? '',
+      inicioContrato: a.clientes?.data_inicio_contrato ?? null,
       fimContrato: a.clientes?.data_fim_contrato ?? null,
       historico: (a.historico_atendimento || [])
         .slice()
@@ -139,7 +161,11 @@ export default function CRMAtendimentoSlim() {
 
   const listaExibida = comDiasCalculados
     .filter(a => a.status === abaAtiva)
-    .filter(a => !filtroCritico || a.diasAberto > 5)
+    .filter(a => {
+      if (filtroModo === 'critico') return a.diasAberto > 5;
+      if (filtroModo === 'contrato') return a.diasParaVencer !== null && a.diasParaVencer <= 90 && a.diasParaVencer >= 0;
+      return true;
+    })
     .filter(a =>
       a.razaoSocial.toLowerCase().includes(busca.toLowerCase()) ||
       a.codigo.toLowerCase().includes(busca.toLowerCase()) ||
@@ -306,7 +332,7 @@ export default function CRMAtendimentoSlim() {
       return;
     }
 
-    const payloadAtendimento = { cliente_id: clienteCriado.id, status: 'em_andamento' };
+    const payloadAtendimento = { cliente_id: clienteCriado.id, status: 'em_andamento', assunto: novoAssunto };
     // Se o usuário informou uma data de abertura (caso de atendimento que já existia
     // antes do sistema), usamos ela no lugar do "agora" padrão do banco.
     if (dataAberturaManual) {
@@ -331,7 +357,71 @@ export default function CRMAtendimentoSlim() {
       endereco: '', tipo_tanque: '', consumo_medio: '', data_inicio_contrato: '', data_fim_contrato: ''
     });
     setDataAberturaManual('');
+    setNovoAssunto('');
     carregarDados();
+  };
+
+  const handleAbrirEdicao = (atendimento) => {
+    setAtendimentoEmEdicao(atendimento);
+    setDadosEdicao({
+      codigo_cliente: atendimento.codigo === '—' ? '' : atendimento.codigo,
+      razao_social: atendimento.razaoSocial === 'Cliente sem cadastro' ? '' : atendimento.razaoSocial,
+      nome_contato: atendimento.contato || '',
+      telefone: atendimento.telefone || '',
+      endereco: atendimento.endereco || '',
+      tipo_tanque: atendimento.tipoTanque || '',
+      consumo_medio: atendimento.consumo || '',
+      data_inicio_contrato: atendimento.inicioContrato || '',
+      data_fim_contrato: atendimento.fimContrato || '',
+      assunto: atendimento.assunto || ''
+    });
+    setModalEditarAberto(true);
+  };
+
+  const handleSalvarEdicaoCadastro = async () => {
+    if (!atendimentoEmEdicao) return;
+    setSalvandoEdicaoCadastro(true);
+
+    const { assunto, ...camposCliente } = dadosEdicao;
+
+    const { error: erroCliente } = await supabase
+      .from('clientes')
+      .update(camposCliente)
+      .eq('id', atendimentoEmEdicao.clienteId);
+
+    const { error: erroAtendimento } = await supabase
+      .from('atendimentos')
+      .update({ assunto })
+      .eq('id', atendimentoEmEdicao.id);
+
+    setSalvandoEdicaoCadastro(false);
+
+    if (erroCliente || erroAtendimento) {
+      console.error(erroCliente || erroAtendimento);
+      alert('Erro ao salvar as alterações. Veja o console.');
+      return;
+    }
+
+    setAtendimentos(prev => prev.map(item =>
+      item.id === atendimentoEmEdicao.id
+        ? {
+            ...item,
+            codigo: camposCliente.codigo_cliente,
+            razaoSocial: camposCliente.razao_social,
+            contato: camposCliente.nome_contato,
+            telefone: camposCliente.telefone,
+            endereco: camposCliente.endereco,
+            tipoTanque: camposCliente.tipo_tanque,
+            consumo: camposCliente.consumo_medio,
+            inicioContrato: camposCliente.data_inicio_contrato || null,
+            fimContrato: camposCliente.data_fim_contrato || null,
+            assunto
+          }
+        : item
+    ));
+
+    setModalEditarAberto(false);
+    setAtendimentoEmEdicao(null);
   };
 
   // -------------------------------------------------------
@@ -374,75 +464,65 @@ export default function CRMAtendimentoSlim() {
 
       <main className="max-w-6xl mx-auto p-3 md:p-5 space-y-4">
 
-        {/* 1. Dashboard (4 Métricas) */}
+        {/* 1. Dashboard (4 Métricas clicáveis) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-          <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <button
+            onClick={() => { setAbaAtiva('em_andamento'); setFiltroModo('todos'); }}
+            className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between text-left hover:border-blue-300 hover:shadow transition-all"
+          >
             <span className="text-[11px] font-medium text-slate-500">Em Andamento</span>
             <div className="flex justify-between items-end mt-1">
               <span className="text-xl md:text-2xl font-bold text-blue-600">{totalEmAndamento}</span>
               <Clock className="w-4 h-4 text-blue-500 hidden sm:block" />
             </div>
-          </div>
+          </button>
 
-          <div className={`p-3 rounded-lg border shadow-sm flex flex-col justify-between ${totalCriticos > 0 ? 'bg-red-50/60 border-red-200' : 'bg-white border-slate-200'}`}>
+          <button
+            onClick={() => { setAbaAtiva('em_andamento'); setFiltroModo('critico'); }}
+            className={`p-3 rounded-lg border shadow-sm flex flex-col justify-between text-left hover:shadow transition-all ${totalCriticos > 0 ? 'bg-red-50/60 border-red-200 hover:border-red-300' : 'bg-white border-slate-200 hover:border-red-200'}`}
+          >
             <span className={`text-[11px] font-medium ${totalCriticos > 0 ? 'text-red-600' : 'text-slate-500'}`}>Parados &gt; 5 Dias</span>
             <div className="flex justify-between items-end mt-1">
               <span className={`text-xl md:text-2xl font-bold ${totalCriticos > 0 ? 'text-red-600' : 'text-slate-700'}`}>{totalCriticos}</span>
               <AlertTriangle className={`w-4 h-4 hidden sm:block ${totalCriticos > 0 ? 'text-red-500' : 'text-slate-400'}`} />
             </div>
-          </div>
+          </button>
 
-          <div className={`p-3 rounded-lg border shadow-sm flex flex-col justify-between ${contratosVencendo.length > 0 ? 'bg-amber-50/60 border-amber-200' : 'bg-white border-slate-200'}`}>
+          <button
+            onClick={() => { setAbaAtiva('em_andamento'); setFiltroModo('contrato'); }}
+            className={`p-3 rounded-lg border shadow-sm flex flex-col justify-between text-left hover:shadow transition-all ${contratosVencendo.length > 0 ? 'bg-amber-50/60 border-amber-200 hover:border-amber-300' : 'bg-white border-slate-200 hover:border-amber-200'}`}
+          >
             <span className={`text-[11px] font-medium ${contratosVencendo.length > 0 ? 'text-amber-700' : 'text-slate-500'}`}>Contratos &lt; 90 dias</span>
             <div className="flex justify-between items-end mt-1">
               <span className={`text-xl md:text-2xl font-bold ${contratosVencendo.length > 0 ? 'text-amber-700' : 'text-slate-700'}`}>{contratosVencendo.length}</span>
               <Calendar className={`w-4 h-4 hidden sm:block ${contratosVencendo.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
             </div>
-          </div>
+          </button>
 
-          <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
+          <button
+            onClick={() => { setAbaAtiva('concluido'); setFiltroModo('todos'); }}
+            className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between text-left hover:border-emerald-300 hover:shadow transition-all"
+          >
             <span className="text-[11px] font-medium text-slate-500">Concluídos</span>
             <div className="flex justify-between items-end mt-1">
               <span className="text-xl md:text-2xl font-bold text-emerald-600">{totalConcluidos}</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-500 hidden sm:block" />
             </div>
-          </div>
+          </button>
         </div>
-
-        {/* 1b. Alerta de Contratos Vencendo (substitui "notificação automática" — 
-             como o app é 100% frontend estático no GitHub Pages, não existe um servidor
-             rodando em segundo plano para disparar e-mail/WhatsApp sozinho. Este painel
-             mostra o alerta sempre que alguém abre o sistema, o que cobre o caso de uso
-             real: o time vê assim que entra na tela. Para um alerta que chegue sozinho no
-             celular sem abrir o app, seria necessário um serviço extra rodando 24h,
-             como uma Supabase Edge Function agendada + API do WhatsApp. */}
-        {contratosVencendo.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <div className="flex items-center gap-1.5 text-amber-700 font-bold text-xs mb-2">
-              <AlertTriangle className="w-3.5 h-3.5" /> Contratos vencendo em até 90 dias
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {contratosVencendo.map(c => (
-                <span key={c.id} className="bg-white border border-amber-200 text-amber-800 text-[11px] px-2 py-1 rounded font-medium">
-                  {c.codigo} • {c.razaoSocial} • {c.diasParaVencer}d restantes
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* 2. Abas e Barra de Pesquisa */}
         <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row gap-2 justify-between items-center">
 
           <div className="flex bg-slate-100 p-1 rounded-md w-full md:w-auto">
             <button
-              onClick={() => { setAbaAtiva('em_andamento'); setFiltroCritico(false); }}
+              onClick={() => { setAbaAtiva('em_andamento'); setFiltroModo('todos'); }}
               className={`flex-1 md:flex-initial px-3 py-1 rounded text-xs font-semibold transition-all ${abaAtiva === 'em_andamento' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               Atendimentos
             </button>
             <button
-              onClick={() => { setAbaAtiva('concluido'); setFiltroCritico(false); }}
+              onClick={() => { setAbaAtiva('concluido'); setFiltroModo('todos'); }}
               className={`flex-1 md:flex-initial px-3 py-1 rounded text-xs font-semibold transition-all ${abaAtiva === 'concluido' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               Concluídos ({totalConcluidos})
@@ -462,12 +542,20 @@ export default function CRMAtendimentoSlim() {
             </div>
 
             {abaAtiva === 'em_andamento' && (
-              <button
-                onClick={() => setFiltroCritico(!filtroCritico)}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 border transition-all ${filtroCritico ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`}
-              >
-                🚨 &gt;5d
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setFiltroModo(filtroModo === 'critico' ? 'todos' : 'critico')}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 border transition-all ${filtroModo === 'critico' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`}
+                >
+                  🚨 &gt;5d
+                </button>
+                <button
+                  onClick={() => setFiltroModo(filtroModo === 'contrato' ? 'todos' : 'contrato')}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 border transition-all ${filtroModo === 'contrato' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200'}`}
+                >
+                  📅 &lt;90d
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -486,7 +574,13 @@ export default function CRMAtendimentoSlim() {
               return (
                 <div
                   key={cliente.id}
-                  className={`bg-white rounded-lg border p-3 shadow-sm transition-all ${isCritico ? 'border-l-4 border-l-red-500 border-red-100' : 'border-slate-200'}`}
+                  className={`bg-white rounded-lg border p-3 shadow-sm transition-all ${
+                    isCritico
+                      ? 'border-l-4 border-l-red-500 border-red-100'
+                      : (alertaContrato && cliente.status === 'em_andamento')
+                        ? 'border-l-4 border-l-amber-400 border-amber-100 bg-amber-50/30'
+                        : 'border-slate-200'
+                  }`}
                 >
                   <div className="flex flex-col md:flex-row justify-between gap-2">
 
@@ -497,6 +591,10 @@ export default function CRMAtendimentoSlim() {
                         </span>
                         <h3 className="font-bold text-slate-800 text-sm">{cliente.razaoSocial}</h3>
                       </div>
+
+                      {cliente.assunto && (
+                        <p className="text-slate-600 text-xs italic">💬 {cliente.assunto}</p>
+                      )}
 
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 text-xs">
                         <span>👤 {cliente.contato}</span>
@@ -577,6 +675,13 @@ export default function CRMAtendimentoSlim() {
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-bold transition-all shadow-sm"
                       >
                         {cliente.status === 'em_andamento' ? 'Evolução / Ver' : 'Ver Histórico'}
+                      </button>
+                      <button
+                        onClick={() => handleAbrirEdicao(cliente)}
+                        className="text-slate-400 hover:text-blue-600 flex items-center gap-1 text-[11px] font-medium"
+                        title="Editar dados cadastrados"
+                      >
+                        <Pencil className="w-3 h-3" /> Editar cadastro
                       </button>
                     </div>
 
@@ -736,7 +841,7 @@ export default function CRMAtendimentoSlim() {
           <div className="bg-white w-full max-w-lg rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800 text-sm">Novo Cliente / Atendimento</h2>
-              <button onClick={() => { setModalNovoAberto(false); setDataAberturaManual(''); }} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => { setModalNovoAberto(false); setDataAberturaManual(''); setNovoAssunto(''); }} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -785,6 +890,19 @@ export default function CRMAtendimentoSlim() {
 
               <div className="pt-1 border-t border-slate-100 mt-1">
                 <label className="text-[11px] font-medium text-slate-500 block mb-0.5">
+                  Assunto deste atendimento
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Vazamento no tanque, troca de manômetro..."
+                  value={novoAssunto}
+                  onChange={(e) => setNovoAssunto(e.target.value)}
+                  className="w-full p-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-slate-500 block mb-0.5">
                   Data de abertura deste atendimento
                 </label>
                 <input
@@ -803,7 +921,7 @@ export default function CRMAtendimentoSlim() {
 
             <div className="p-3 border-t border-slate-100 flex justify-end gap-2">
               <button
-                onClick={() => { setModalNovoAberto(false); setDataAberturaManual(''); }}
+                onClick={() => { setModalNovoAberto(false); setDataAberturaManual(''); setNovoAssunto(''); }}
                 className="px-3 py-1.5 rounded text-xs font-semibold text-slate-500 hover:bg-slate-100"
               >
                 Cancelar
@@ -819,6 +937,93 @@ export default function CRMAtendimentoSlim() {
           </div>
         </div>
       )}
+
+      {/* Modal de Edição de Cadastro (dados do cliente + assunto do atendimento) */}
+      {modalEditarAberto && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-lg rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="p-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+              <h2 className="font-bold text-slate-800 text-sm">Editar Cadastro</h2>
+              <button
+                onClick={() => { setModalEditarAberto(false); setAtendimentoEmEdicao(null); }}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 space-y-2">
+              {[
+                ['codigo_cliente', 'Código do Cliente *'],
+                ['razao_social', 'Razão Social *'],
+                ['nome_contato', 'Nome do Contato'],
+                ['telefone', 'Telefone (formato 5541999999999)'],
+                ['endereco', 'Endereço'],
+                ['tipo_tanque', 'Tipo de Tanque'],
+                ['consumo_medio', 'Consumo Médio']
+              ].map(([campo, label]) => (
+                <div key={campo}>
+                  <label className="text-[11px] font-medium text-slate-500 block mb-0.5">{label}</label>
+                  <input
+                    type="text"
+                    value={dadosEdicao[campo]}
+                    onChange={(e) => setDadosEdicao(prev => ({ ...prev, [campo]: e.target.value }))}
+                    className="w-full p-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              ))}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 block mb-0.5">Início do Contrato</label>
+                  <input
+                    type="date"
+                    value={dadosEdicao.data_inicio_contrato}
+                    onChange={(e) => setDadosEdicao(prev => ({ ...prev, data_inicio_contrato: e.target.value }))}
+                    className="w-full p-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-500 block mb-0.5">Fim do Contrato</label>
+                  <input
+                    type="date"
+                    value={dadosEdicao.data_fim_contrato}
+                    onChange={(e) => setDadosEdicao(prev => ({ ...prev, data_fim_contrato: e.target.value }))}
+                    className="w-full p-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-1 border-t border-slate-100 mt-1">
+                <label className="text-[11px] font-medium text-slate-500 block mb-0.5">Assunto deste atendimento</label>
+                <input
+                  type="text"
+                  value={dadosEdicao.assunto}
+                  onChange={(e) => setDadosEdicao(prev => ({ ...prev, assunto: e.target.value }))}
+                  className="w-full p-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                onClick={() => { setModalEditarAberto(false); setAtendimentoEmEdicao(null); }}
+                className="px-3 py-1.5 rounded text-xs font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarEdicaoCadastro}
+                disabled={salvandoEdicaoCadastro}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs font-bold"
+              >
+                {salvandoEdicaoCadastro ? 'Salvando...' : 'Salvar Alterações'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );
