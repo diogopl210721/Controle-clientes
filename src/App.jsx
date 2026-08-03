@@ -15,7 +15,8 @@ import {
   X,
   Loader2,
   Pencil,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -30,7 +31,7 @@ export default function CRMAtendimentoSlim() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
 
-  const [abaAtiva, setAbaAtiva] = useState('em_andamento'); // 'em_andamento' | 'concluidos'
+  const [abaAtiva, setAbaAtiva] = useState('em_andamento'); // 'em_andamento' | 'concluido'
   const [busca, setBusca] = useState('');
   const [filtroCritico, setFiltroCritico] = useState(false);
   const [atendimentoSelecionado, setAtendimentoSelecionado] = useState(null);
@@ -243,6 +244,48 @@ export default function CRMAtendimentoSlim() {
     return true;
   };
 
+  const handleExcluirAtendimento = async (id) => {
+    if (!window.confirm('Excluir este atendimento e todo o seu histórico? Essa ação não pode ser desfeita.')) return;
+
+    const { error } = await supabase
+      .from('atendimentos')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(error);
+      alert('Erro ao excluir o atendimento. Veja o console.');
+      return;
+    }
+
+    setAtendimentos(prev => prev.filter(item => item.id !== id));
+    setAtendimentoSelecionado(null);
+  };
+
+  const handleExcluirEvolucao = async (historicoId) => {
+    if (!window.confirm('Excluir este registro do histórico? Essa ação não pode ser desfeita.')) return;
+
+    const { error } = await supabase
+      .from('historico_atendimento')
+      .delete()
+      .eq('id', historicoId);
+
+    if (error) {
+      console.error(error);
+      alert('Erro ao excluir o registro. Veja o console.');
+      return;
+    }
+
+    const removerDoHistorico = (historico) => historico.filter(h => h.id !== historicoId);
+
+    setAtendimentos(prev => prev.map(item =>
+      item.id === atendimentoSelecionado.id
+        ? { ...item, historico: removerDoHistorico(item.historico) }
+        : item
+    ));
+    setAtendimentoSelecionado(prev => prev ? { ...prev, historico: removerDoHistorico(prev.historico) } : prev);
+  };
+
   const handleCriarClienteEAtendimento = async () => {
     if (!novoCliente.codigo_cliente.trim() || !novoCliente.razao_social.trim()) {
       alert('Preencha ao menos o código e a razão social.');
@@ -399,8 +442,8 @@ export default function CRMAtendimentoSlim() {
               Atendimentos
             </button>
             <button
-              onClick={() => { setAbaAtiva('concluidos'); setFiltroCritico(false); }}
-              className={`flex-1 md:flex-initial px-3 py-1 rounded text-xs font-semibold transition-all ${abaAtiva === 'concluidos' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              onClick={() => { setAbaAtiva('concluido'); setFiltroCritico(false); }}
+              className={`flex-1 md:flex-initial px-3 py-1 rounded text-xs font-semibold transition-all ${abaAtiva === 'concluido' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               Concluídos ({totalConcluidos})
             </button>
@@ -568,6 +611,15 @@ export default function CRMAtendimentoSlim() {
               </button>
             </div>
 
+            <div className="px-3 py-2 border-b border-slate-100 bg-white flex justify-end">
+              <button
+                onClick={() => handleExcluirAtendimento(atendimentoSelecionado.id)}
+                className="text-[11px] text-red-500 hover:text-red-700 flex items-center gap-1 font-medium"
+              >
+                <Trash2 className="w-3 h-3" /> Excluir este atendimento
+              </button>
+            </div>
+
             {atendimentoSelecionado.status === 'em_andamento' && (
               <div className="p-3 border-b border-slate-100 bg-white space-y-2">
                 <textarea
@@ -619,13 +671,22 @@ export default function CRMAtendimentoSlim() {
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>{h.data}</span>
                     {editandoHistoricoId !== h.id && (
-                      <button
-                        onClick={() => { setEditandoHistoricoId(h.id); setTextoEdicao(h.texto); }}
-                        className="text-slate-300 hover:text-blue-500"
-                        title="Editar registro"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { setEditandoHistoricoId(h.id); setTextoEdicao(h.texto); }}
+                          className="text-slate-300 hover:text-blue-500"
+                          title="Editar registro"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleExcluirEvolucao(h.id)}
+                          className="text-slate-300 hover:text-red-500"
+                          title="Excluir registro"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     )}
                   </div>
 
