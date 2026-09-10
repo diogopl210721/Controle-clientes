@@ -61,16 +61,21 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
           <div className="flex items-center gap-1.5">
             <p className="text-xs font-semibold text-slate-800 truncate">{c.razao_social}</p>
           </div>
-          {notaAtual ? (
-            <>
-              <p className="text-[11px] text-slate-600 truncate">{notaAtual.descricao}</p>
-              {notaAnterior && <p className="text-[10px] text-slate-400 truncate">Antes: {notaAnterior.descricao}</p>}
-            </>
-          ) : (
-            <p className="text-[11px] text-slate-400 truncate">
-              {c.codigo_cliente}{c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} — sem registros ainda
-            </p>
-          )}
+          <p className="text-[10px] text-slate-400 truncate">
+            {c.codigo_cliente}{c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''}{c.nome_contato ? ` · ${c.nome_contato}` : ''}
+          </p>
+
+          {/* Antes / Atual — para acompanhar a evolução do caso */}
+          <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+            <div className="border border-slate-200 rounded p-1.5 bg-slate-50">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Antes</p>
+              <p className="text-[11px] text-slate-600 break-words">{notaAnterior?.descricao || '—'}</p>
+            </div>
+            <div className="border border-blue-200 rounded p-1.5 bg-blue-50">
+              <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wide mb-0.5">Atual</p>
+              <p className="text-[11px] text-slate-700 break-words">{notaAtual?.descricao || '—'}</p>
+            </div>
+          </div>
 
           {/* Adicionar anotação direto na lista */}
           <div className="flex items-center gap-1.5 mt-1.5" onClick={parar}>
