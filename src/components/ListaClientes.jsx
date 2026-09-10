@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { statusInteracao, diasSemInteracao, formatarData } from '../lib/helpers';
+import { statusInteracao, diasSemInteracao } from '../lib/helpers';
 import { labelFase, corFase, FASES } from '../lib/fases';
+import BotoesContato from './BotoesContato';
 
 const CORES_STATUS = {
   critico: 'bg-red-500',
@@ -74,23 +75,28 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
         {filtrados.map((c) => {
           const status = statusInteracao(c.acompanhamento?.ultima_interacao);
           const dias = diasSemInteracao(c.acompanhamento?.ultima_interacao);
+          const ultimaNota = c.historico?.[0]?.descricao;
+          const endereco = c.contrato?.endereco_entrega || c.endereco;
           return (
-            <button
+            <div
               key={c.id}
               onClick={() => onSelecionarCliente(c)}
-              className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors flex items-center gap-2.5"
+              className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors flex items-center gap-2.5 cursor-pointer"
             >
               <span className={`w-2 h-2 rounded-full shrink-0 ${CORES_STATUS[status]}`} title={`${dias ?? '—'} dias sem contato`} />
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-800 truncate">{c.razao_social}</p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {c.codigo_cliente} {c.nome_fantasia ? `· ${c.nome_fantasia}` : ''} {c.telefone ? `· ${c.telefone}` : ''}
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-semibold text-slate-800 truncate">{c.razao_social}</p>
+                  <span className={`shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded border ${corFase(c.acompanhamento?.fase_atual)}`}>
+                    {labelFase(c.acompanhamento?.fase_atual)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {ultimaNota || `${c.codigo_cliente}${c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} — sem registros ainda`}
                 </p>
               </div>
-              <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${corFase(c.acompanhamento?.fase_atual)}`}>
-                {labelFase(c.acompanhamento?.fase_atual)}
-              </span>
-            </button>
+              <BotoesContato telefone={c.telefone} endereco={endereco} tamanho="compacto" />
+            </div>
           );
         })}
       </div>

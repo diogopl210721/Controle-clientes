@@ -1,7 +1,7 @@
 import React from 'react';
-import { AlertTriangle, Clock, CalendarClock, PieChart } from 'lucide-react';
-import { diasSemInteracao, statusInteracao, diasEntre, formatarData } from '../lib/helpers';
-import { FASES, labelFase, corFase } from '../lib/fases';
+import { AlertTriangle, CalendarClock, PieChart } from 'lucide-react';
+import { diasSemInteracao, statusInteracao, diasEntre } from '../lib/helpers';
+import { FASES, corFase } from '../lib/fases';
 
 function CardSecao({ icone: Icone, titulo, corIcone, children, vazio }) {
   return (
@@ -27,7 +27,9 @@ function LinhaCliente({ cliente, destaque, onClick }) {
     >
       <div className="min-w-0">
         <p className="text-xs font-semibold text-slate-800 truncate">{cliente.razao_social}</p>
-        <p className="text-[11px] text-slate-400 truncate">{cliente.codigo_cliente} · {cliente.nome_fantasia || cliente.nome_contato || ''}</p>
+        <p className="text-[11px] text-slate-400 truncate">
+          {cliente.historico?.[0]?.descricao || `${cliente.codigo_cliente} · ${cliente.nome_fantasia || cliente.nome_contato || ''}`}
+        </p>
       </div>
       <span className="shrink-0 text-[11px] font-bold text-slate-500">{destaque}</span>
     </button>
@@ -42,10 +44,6 @@ export default function Dashboard({ clientes, onSelecionarCliente }) {
   const atencao = clientes
     .filter((c) => statusInteracao(c.acompanhamento?.ultima_interacao) === 'atencao')
     .sort((a, b) => diasSemInteracao(b.acompanhamento?.ultima_interacao) - diasSemInteracao(a.acompanhamento?.ultima_interacao));
-
-  const proximasAcoes = clientes
-    .filter((c) => c.acompanhamento?.data_proxima_acao)
-    .sort((a, b) => new Date(a.acompanhamento.data_proxima_acao) - new Date(b.acompanhamento.data_proxima_acao));
 
   const vencimentos = clientes
     .filter((c) => c.contrato?.data_termino && diasEntre(c.contrato.data_termino) >= 0 && diasEntre(c.contrato.data_termino) <= 90)
@@ -85,17 +83,6 @@ export default function Dashboard({ clientes, onSelecionarCliente }) {
                 {diasSemInteracao(c.acompanhamento?.ultima_interacao)}d sem contato
               </span>
             }
-            onClick={() => onSelecionarCliente(c)}
-          />
-        ))}
-      </CardSecao>
-
-      <CardSecao icone={Clock} corIcone="text-blue-500" titulo="Próximas ações" vazio="Nenhuma próxima ação agendada.">
-        {proximasAcoes.map((c) => (
-          <LinhaCliente
-            key={c.id}
-            cliente={c}
-            destaque={<span className="text-blue-600">{formatarData(c.acompanhamento.data_proxima_acao)}</span>}
             onClick={() => onSelecionarCliente(c)}
           />
         ))}

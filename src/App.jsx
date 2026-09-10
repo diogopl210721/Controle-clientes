@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useCRMData } from './hooks/useCRMData';
 import Dashboard from './components/Dashboard';
 import ListaClientes from './components/ListaClientes';
 import FichaCliente from './components/FichaCliente';
 import ModalNovoCliente from './components/ModalNovoCliente';
+import DocumentosNecessarios from './components/DocumentosNecessarios';
+
+const TITULOS = {
+  hoje: 'Acompanhamento de Clientes',
+  clientes: 'Clientes',
+  documentos: 'Documentação Necessária',
+};
 
 export default function App() {
   const { clientes, carregando, erro, recarregar } = useCRMData();
-  const [aba, setAba] = useState('hoje'); // 'hoje' | 'clientes'
+  const [aba, setAba] = useState('hoje'); // 'hoje' | 'clientes' | 'documentos'
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState(null);
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
 
@@ -23,7 +30,7 @@ export default function App() {
       <header className="bg-slate-800 text-white px-4 py-3 sticky top-0 z-30 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            {aba === 'clientes' && (
+            {aba !== 'hoje' && (
               <button
                 onClick={() => setAba('hoje')}
                 className="text-slate-300 hover:text-white p-1 -ml-1 shrink-0"
@@ -32,9 +39,7 @@ export default function App() {
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}
-            <h1 className="font-bold text-sm truncate">
-              {aba === 'clientes' ? 'Clientes' : 'Acompanhamento de Clientes'}
-            </h1>
+            <h1 className="font-bold text-sm truncate">{TITULOS[aba]}</h1>
           </div>
           {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-300 shrink-0" />}
         </div>
@@ -58,6 +63,8 @@ export default function App() {
             onNovoCliente={() => setModalNovoAberto(true)}
           />
         )}
+
+        {!erro && aba === 'documentos' && <DocumentosNecessarios />}
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 flex z-30">
@@ -73,6 +80,12 @@ export default function App() {
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${aba === 'clientes' ? 'text-blue-600' : 'text-slate-400'}`}
           >
             <Users className="w-4 h-4" /> Clientes ({clientes.length})
+          </button>
+          <button
+            onClick={() => setAba('documentos')}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${aba === 'documentos' ? 'text-blue-600' : 'text-slate-400'}`}
+          >
+            <FileText className="w-4 h-4" /> Docs
           </button>
         </div>
       </nav>

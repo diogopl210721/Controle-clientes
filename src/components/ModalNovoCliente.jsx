@@ -5,11 +5,11 @@ import { extrairTextoPDF, interpretarTextoConsigaz } from '../lib/parsePDF';
 
 const VAZIO_CLIENTE = {
   codigo_cliente: '', razao_social: '', nome_fantasia: '', cnpj: '',
-  nome_contato: '', telefone: '', endereco: '', cidade: '', uf: '', consultor: '', canal_venda: '', rota: '',
+  nome_contato: '', telefone: '', cidade: '', uf: '', consultor: '', canal_venda: '', rota: '',
 };
 const VAZIO_CONTRATO = {
   numero_contrato: '', data_inicio: '', data_termino: '', situacao: 'Vigente',
-  modelo_recipiente: '', qtde_recipiente: '', item_consumo: '', preco_atual: '',
+  modelo_recipiente: '', qtde_recipiente: '', endereco_entrega: '', preco_atual: '',
   consumo_medio_6m: '', frequencia: '',
 };
 
@@ -71,7 +71,7 @@ export default function ModalNovoCliente({ onFechar, onCriado }) {
       return;
     }
 
-    if (contrato.numero_contrato || contrato.data_inicio || contrato.item_consumo) {
+    if (contrato.numero_contrato || contrato.data_inicio || contrato.endereco_entrega) {
       const { data: contratoCriado } = await supabase
         .from('contratos')
         .insert({
@@ -138,7 +138,6 @@ export default function ModalNovoCliente({ onFechar, onCriado }) {
               <Campo label="CNPJ" value={cliente.cnpj} onChange={(v) => setCliente((c) => ({ ...c, cnpj: v }))} />
               <Campo label="Telefone" value={cliente.telefone} onChange={(v) => setCliente((c) => ({ ...c, telefone: v }))} />
               <Campo label="Contato" value={cliente.nome_contato} onChange={(v) => setCliente((c) => ({ ...c, nome_contato: v }))} />
-              <Campo label="Endereço" value={cliente.endereco} onChange={(v) => setCliente((c) => ({ ...c, endereco: v }))} className="col-span-2" />
               <Campo label="Cidade" value={cliente.cidade} onChange={(v) => setCliente((c) => ({ ...c, cidade: v }))} />
               <Campo label="UF" value={cliente.uf} onChange={(v) => setCliente((c) => ({ ...c, uf: v }))} />
               <Campo label="Consultor" value={cliente.consultor} onChange={(v) => setCliente((c) => ({ ...c, consultor: v }))} className="col-span-2" />
@@ -154,9 +153,9 @@ export default function ModalNovoCliente({ onFechar, onCriado }) {
               <Campo label="Término" tipo="date" value={contrato.data_termino} onChange={(v) => setContrato((c) => ({ ...c, data_termino: v }))} />
               <Campo label="Modelo de tanque" value={contrato.modelo_recipiente} onChange={(v) => setContrato((c) => ({ ...c, modelo_recipiente: v }))} />
               <Campo label="Qtde. recipiente" tipo="number" value={contrato.qtde_recipiente} onChange={(v) => setContrato((c) => ({ ...c, qtde_recipiente: v }))} />
-              <Campo label="Item de consumo" value={contrato.item_consumo} onChange={(v) => setContrato((c) => ({ ...c, item_consumo: v }))} className="col-span-2" />
               <Campo label="Preço atual (R$)" tipo="number" value={contrato.preco_atual} onChange={(v) => setContrato((c) => ({ ...c, preco_atual: v }))} />
               <Campo label="Frequência" value={contrato.frequencia} onChange={(v) => setContrato((c) => ({ ...c, frequencia: v }))} />
+              <Campo label="Endereço de entrega" value={contrato.endereco_entrega} onChange={(v) => setContrato((c) => ({ ...c, endereco_entrega: v }))} className="col-span-2" />
             </div>
           </div>
         </div>

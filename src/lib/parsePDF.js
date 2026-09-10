@@ -48,8 +48,9 @@ export function interpretarTextoConsigaz(texto) {
   m = t.match(/Canal de venda:\s*(.+?)\s*Cond\. pagto/);
   if (m) resultado.cliente.canal_venda = m[1].trim();
 
-  m = t.match(/Endereço Padrão:\s*(.+?)\s*CEP:\s*[\d-]+/);
-  if (m) resultado.cliente.endereco = m[1].trim();
+  // Endereço de ENTREGA (não o de cadastro) — é o que importa para localizar o cliente no mapa
+  m = t.match(/Entrega:\s*(?:ENTREGA\s*-\s*)?(.+?)\s*CEP:\s*[\d-]+/);
+  if (m) resultado.contrato.endereco_entrega = m[1].trim();
 
   m = t.match(/Bairro:\s*(.+?)\s*Cidade:\s*(.+?)\s*UF:\s*([A-Z]{2})/);
   if (m) {
@@ -83,7 +84,6 @@ export function interpretarTextoConsigaz(texto) {
   // Linha de consumo: "CB0010 - ONU 1075,GAS LIQUEFEITO PETROLEO (GRANEL) R$ 7,5174 107 Kg 0,56 54 Kg 0,28 QUINZENAL QUARTA"
   m = textoConsumo.match(/^(\S+)\s*-\s*(.+?)\s*R\$\s*([\d.,]+)\s+(\d+)\s*Kg\s+([\d.,]+)\s+(\d+)\s*Kg\s+([\d.,]+)\s+([A-ZÇÃÕ\s]+?)\s*$/);
   if (m) {
-    resultado.contrato.item_consumo = `${m[1].trim()} - ${m[2].trim()}`;
     resultado.contrato.preco_atual = numeroBr(m[3]);
     resultado.contrato.consumo_medio_6m = parseInt(m[4], 10);
     resultado.contrato.giro_6m = numeroBr(m[5]);

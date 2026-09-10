@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Send, Loader2, Save, Trash2 } from 'lucide-react';
+import { X, Send, Loader2, Save } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { formatarData, formatarDataHora, formatarMoeda, diasSemInteracao, statusInteracao } from '../lib/helpers';
-import { FASES, PRIORIDADES, corFase } from '../lib/fases';
+import { formatarDataHora, diasSemInteracao, statusInteracao } from '../lib/helpers';
+import { FASES, PRIORIDADES } from '../lib/fases';
+import BotoesContato from './BotoesContato';
 
 function Campo({ label, value, onChange, tipo = 'text', className = '' }) {
   return (
@@ -62,7 +63,6 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
         cnpj: dados.cnpj,
         nome_contato: dados.nome_contato,
         telefone: dados.telefone,
-        endereco: dados.endereco,
         cidade: dados.cidade,
         uf: dados.uf,
         consultor: dados.consultor,
@@ -82,7 +82,7 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
       situacao: contrato.situacao,
       modelo_recipiente: contrato.modelo_recipiente,
       qtde_recipiente: contrato.qtde_recipiente || null,
-      item_consumo: contrato.item_consumo,
+      endereco_entrega: contrato.endereco_entrega,
       preco_atual: contrato.preco_atual || null,
       consumo_medio_6m: contrato.consumo_medio_6m || null,
       frequencia: contrato.frequencia,
@@ -99,11 +99,7 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
     const payload = {
       cliente_id: cliente.id,
       fase_atual: acomp.fase_atual || 'aguardando_documentacao',
-      proxima_acao: acomp.proxima_acao,
-      data_proxima_acao: acomp.data_proxima_acao || null,
       prioridade: acomp.prioridade || 'normal',
-      pendencias: acomp.pendencias,
-      observacoes: acomp.observacoes,
       updated_at: new Date().toISOString(),
     };
     const { error } = acomp.id
@@ -130,8 +126,8 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-slate-50 w-full max-w-2xl rounded-lg shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="p-3 border-b border-slate-200 bg-white flex justify-between items-center sticky top-0 z-10">
-          <div>
-            <h2 className="font-bold text-slate-800 text-sm">{cliente.razao_social}</h2>
+          <div className="min-w-0">
+            <h2 className="font-bold text-slate-800 text-sm truncate">{cliente.razao_social}</h2>
             <p className="text-[11px] text-slate-400">
               {cliente.codigo_cliente} ·{' '}
               <span className={status === 'critico' ? 'text-red-600 font-semibold' : status === 'atencao' ? 'text-amber-600 font-semibold' : 'text-emerald-600 font-semibold'}>
@@ -139,9 +135,12 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
               </span>
             </p>
           </div>
-          <button onClick={onFechar} className="text-slate-400 hover:text-slate-600 p-1">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <BotoesContato telefone={cliente.telefone} endereco={contrato.endereco_entrega} />
+            <button onClick={onFechar} className="text-slate-400 hover:text-slate-600 p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="p-3 space-y-3">
@@ -152,7 +151,6 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
             <Campo label="CNPJ" value={dados.cnpj} onChange={(v) => setDados((d) => ({ ...d, cnpj: v }))} />
             <Campo label="Telefone" value={dados.telefone} onChange={(v) => setDados((d) => ({ ...d, telefone: v }))} />
             <Campo label="Contato" value={dados.nome_contato} onChange={(v) => setDados((d) => ({ ...d, nome_contato: v }))} />
-            <Campo label="Endereço" value={dados.endereco} onChange={(v) => setDados((d) => ({ ...d, endereco: v }))} className="col-span-2" />
             <Campo label="Cidade" value={dados.cidade} onChange={(v) => setDados((d) => ({ ...d, cidade: v }))} />
             <Campo label="UF" value={dados.uf} onChange={(v) => setDados((d) => ({ ...d, uf: v }))} />
             <Campo label="Consultor" value={dados.consultor} onChange={(v) => setDados((d) => ({ ...d, consultor: v }))} className="col-span-2" />
@@ -165,10 +163,10 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
             <Campo label="Término" tipo="date" value={contrato.data_termino} onChange={(v) => setContrato((d) => ({ ...d, data_termino: v }))} />
             <Campo label="Modelo de tanque" value={contrato.modelo_recipiente} onChange={(v) => setContrato((d) => ({ ...d, modelo_recipiente: v }))} />
             <Campo label="Qtde. recipiente" tipo="number" value={contrato.qtde_recipiente} onChange={(v) => setContrato((d) => ({ ...d, qtde_recipiente: v }))} />
-            <Campo label="Item de consumo" value={contrato.item_consumo} onChange={(v) => setContrato((d) => ({ ...d, item_consumo: v }))} />
             <Campo label="Preço atual (R$)" tipo="number" value={contrato.preco_atual} onChange={(v) => setContrato((d) => ({ ...d, preco_atual: v }))} />
             <Campo label="Consumo médio 6M (kg)" tipo="number" value={contrato.consumo_medio_6m} onChange={(v) => setContrato((d) => ({ ...d, consumo_medio_6m: v }))} />
             <Campo label="Frequência de entrega" value={contrato.frequencia} onChange={(v) => setContrato((d) => ({ ...d, frequencia: v }))} />
+            <Campo label="Endereço de entrega" value={contrato.endereco_entrega} onChange={(v) => setContrato((d) => ({ ...d, endereco_entrega: v }))} className="col-span-2" />
           </Bloco>
 
           <Bloco titulo="Acompanhamento" onSalvar={salvarAcompanhamento} salvando={salvandoAcomp}>
@@ -195,18 +193,6 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
                   <option key={p.valor} value={p.valor}>{p.label}</option>
                 ))}
               </select>
-            </div>
-            <Campo label="Próxima ação" value={acomp.proxima_acao} onChange={(v) => setAcomp((d) => ({ ...d, proxima_acao: v }))} className="col-span-2" />
-            <Campo label="Data da próxima ação" tipo="date" value={acomp.data_proxima_acao} onChange={(v) => setAcomp((d) => ({ ...d, data_proxima_acao: v }))} />
-            <Campo label="Pendências" value={acomp.pendencias} onChange={(v) => setAcomp((d) => ({ ...d, pendencias: v }))} />
-            <div className="col-span-2">
-              <label className="text-[11px] font-medium text-slate-500 block mb-0.5">Observações</label>
-              <textarea
-                value={acomp.observacoes || ''}
-                onChange={(e) => setAcomp((d) => ({ ...d, observacoes: e.target.value }))}
-                rows={2}
-                className="w-full p-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
-              />
             </div>
           </Bloco>
 

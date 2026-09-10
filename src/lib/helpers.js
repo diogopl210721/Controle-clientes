@@ -32,6 +32,25 @@ export function formatarDataHora(data) {
   });
 }
 
+// Links rápidos de contato — abrem o app nativo quando disponível
+export function linkWhatsapp(telefone) {
+  if (!telefone) return null;
+  let digitos = telefone.replace(/\D/g, '');
+  if (!digitos) return null;
+  if (!digitos.startsWith('55')) digitos = `55${digitos}`;
+  return `https://wa.me/${digitos}`;
+}
+
+export function linkWaze(endereco) {
+  if (!endereco) return null;
+  return `https://waze.com/ul?q=${encodeURIComponent(endereco)}&navigate=yes`;
+}
+
+export function linkMaps(endereco) {
+  if (!endereco) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
+}
+
 export function formatarMoeda(valor) {
   if (valor === null || valor === undefined || valor === '') return '—';
   const n = typeof valor === 'string' ? parseFloat(valor.replace(',', '.')) : valor;
