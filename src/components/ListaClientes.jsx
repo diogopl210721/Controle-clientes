@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Send, Loader2, ChevronRight } from 'lucide-react';
+import { Search, Plus, Send, Loader2, ChevronRight, Clock, AlertTriangle, CalendarClock, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { statusInteracao, diasSemInteracao, diasEntre } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
@@ -122,22 +122,87 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
 
 export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar }) {
   const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState(null); // null | 'parados' | 'vencimento'
+
+  const comMetricas = useMemo(
+    () =>
+      clientes.map((c) => ({
+        ...c,
+        _diasSemContato: diasSemInteracao(c.acompanhamento?.ultima_interacao),
+        _diasContrato: c.contrato?.data_termino ? diasEntre(c.contrato.data_termino) : null,
+      })),
+    [clientes]
+  );
+
+  const totalParados = comMetricas.filter((c) => c._diasSemContato !== null && c._diasSemContato >= 5).length;
+  const totalVencendo = comMetricas.filter((c) => c._diasContrato !== null && c._diasContrato >= 0 && c._diasContrato <= 90).length;
+  const totalEmDia = comMetricas.length - totalParados;
 
   const filtrados = useMemo(() => {
     const termo = busca.toLowerCase();
-    if (!termo) return clientes;
-    return clientes.filter(
-      (c) =>
-        c.razao_social?.toLowerCase().includes(termo) ||
-        c.codigo_cliente?.toLowerCase().includes(termo) ||
-        c.nome_fantasia?.toLowerCase().includes(termo) ||
-        c.telefone?.toLowerCase().includes(termo) ||
-        c.nome_contato?.toLowerCase().includes(termo)
-    );
-  }, [clientes, busca]);
+    return comMetricas
+      .filter((c) => {
+        if (!termo) return true;
+        return (
+          c.razao_social?.toLowerCase().includes(termo) ||
+          c.codigo_cliente?.toLowerCase().includes(termo) ||
+          c.nome_fantasia?.toLowerCase().includes(termo) ||
+          c.telefone?.toLowerCase().includes(termo) ||
+          c.nome_contato?.toLowerCase().includes(termo)
+        );
+      })
+      .filter((c) => {
+        if (filtro === 'parados') return c._diasSemContato !== null && c._diasSemContato >= 5;
+        if (filtro === 'vencimento') return c._diasContrato !== null && c._diasContrato >= 0 && c._diasContrato <= 90;
+        return true;
+      });
+  }, [comMetricas, busca, filtro]);
+
+  const alternarFiltro = (valor) => setFiltro((atual) => (atual === valor ? null : valor));
 
   return (
     <div className="space-y-3">
+      {/* Indicadores — clicáveis para filtrar a lista abaixo */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button
+          onClick={() => setFiltro(null)}
+          className={`text-left bg-white border rounded-lg p-2.5 ${filtro === null ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200'}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Total de clientes</span>
+            <Clock className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <p className="text-lg font-bold text-blue-600">{clientes.length}</p>
+        </button>
+        <button
+          onClick={() => alternarFiltro('parados')}
+          className={`text-left bg-white border rounded-lg p-2.5 ${filtro === 'parados' ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Parados &gt; 5 dias</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+          </div>
+          <p className="text-lg font-bold text-red-600">{totalParados}</p>
+        </button>
+        <button
+          onClick={() => alternarFiltro('vencimento')}
+          className={`text-left bg-white border rounded-lg p-2.5 ${filtro === 'vencimento' ? 'border-orange-400 ring-1 ring-orange-400' : 'border-slate-200'}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Contratos &lt; 90 dias</span>
+            <CalendarClock className="w-3.5 h-3.5 text-orange-500" />
+          </div>
+          <p className="text-lg font-bold text-orange-600">{totalVencendo}</p>
+        </button>
+        <div className="text-left bg-white border border-slate-200 rounded-lg p-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Em dia</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          </div>
+          <p className="text-lg font-bold text-emerald-600">{totalEmDia}</p>
+        </div>
+      </div>
+
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -149,6 +214,18 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
             className="w-full pl-8 pr-2 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
           />
         </div>
+        <button
+          onClick={() => alternarFiltro('parados')}
+          className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'parados' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}
+        >
+          &gt;5d
+        </button>
+        <button
+          onClick={() => alternarFiltro('vencimento')}
+          className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'vencimento' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200'}`}
+        >
+          &lt;90d
+        </button>
         <button
           onClick={onNovoCliente}
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"
