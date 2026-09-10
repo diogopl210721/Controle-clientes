@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { statusInteracao, diasSemInteracao } from '../lib/helpers';
+import { statusInteracao, diasSemInteracao, diasEntre } from '../lib/helpers';
 import BotoesContato from './BotoesContato';
 
 const CORES_STATUS = {
@@ -53,8 +53,9 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
         {filtrados.map((c) => {
           const status = statusInteracao(c.acompanhamento?.ultima_interacao);
           const dias = diasSemInteracao(c.acompanhamento?.ultima_interacao);
-          const ultimaNota = c.historico?.[0]?.descricao;
+          const [notaAtual, notaAnterior] = c.historico || [];
           const endereco = c.contrato?.endereco_entrega || c.endereco;
+          const diasContrato = c.contrato?.data_termino ? diasEntre(c.contrato.data_termino) : null;
           return (
             <div
               key={c.id}
@@ -64,11 +65,27 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
               <span className={`w-2 h-2 rounded-full shrink-0 ${CORES_STATUS[status]}`} title={`${dias ?? '—'} dias sem contato`} />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-800 truncate">{c.razao_social}</p>
-                <p className="text-[11px] text-slate-500 truncate">
-                  {ultimaNota || `${c.codigo_cliente}${c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} — sem registros ainda`}
-                </p>
+                {notaAtual ? (
+                  <>
+                    <p className="text-[11px] text-slate-600 truncate">{notaAtual.descricao}</p>
+                    {notaAnterior && (
+                      <p className="text-[10px] text-slate-400 truncate">Antes: {notaAnterior.descricao}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {c.codigo_cliente}{c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} — sem registros ainda
+                  </p>
+                )}
               </div>
-              <BotoesContato telefone={c.telefone} endereco={endereco} tamanho="compacto" />
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {diasContrato !== null && (
+                  <span className={`text-[10px] font-semibold ${diasContrato < 0 ? 'text-red-600' : diasContrato <= 30 ? 'text-red-600' : diasContrato <= 90 ? 'text-amber-600' : 'text-slate-400'}`}>
+                    {diasContrato < 0 ? `venceu há ${Math.abs(diasContrato)}d` : `vence em ${diasContrato}d`}
+                  </span>
+                )}
+                <BotoesContato telefone={c.telefone} endereco={endereco} tamanho="compacto" />
+              </div>
             </div>
           );
         })}

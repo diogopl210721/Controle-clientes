@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, Trash2, Loader2, FileText, AlertTriangle, X } from 'lucide-react';
+import { Search, Plus, Trash2, Loader2, FileText, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { MOTIVOS, TIPOS_CLIENTE, labelMotivo, labelTipoCliente } from '../lib/documentos';
 
@@ -131,13 +131,6 @@ export default function DocumentosNecessarios() {
 
   return (
     <div className="space-y-3">
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex gap-2 items-start">
-        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-amber-800">
-          Essa lista foi montada a partir da sua planilha impressa — confira e corrija direto aqui qualquer item que estiver errado ou faltando.
-        </p>
-      </div>
-
       <div className="relative">
         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
         <input

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Send, Loader2, Save } from 'lucide-react';
+import { X, Send, Loader2, Save, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { formatarDataHora, diasSemInteracao, statusInteracao } from '../lib/helpers';
+import { formatarDataHora, diasSemInteracao, statusInteracao, diasEntre } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
 import BotoesContato from './BotoesContato';
 
@@ -48,6 +48,8 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
   const [salvandoAcomp, setSalvandoAcomp] = useState(false);
   const [novoHistorico, setNovoHistorico] = useState('');
   const [salvandoHistorico, setSalvandoHistorico] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
 
   const status = statusInteracao(cliente.acompanhamento?.ultima_interacao);
   const dias = diasSemInteracao(cliente.acompanhamento?.ultima_interacao);
@@ -121,25 +123,62 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
     }
   };
 
+  const removerHistorico = async (id) => {
+    await supabase.from('historico').delete().eq('id', id);
+    onAtualizar();
+  };
+
+  const excluirCliente = async () => {
+    setExcluindo(true);
+    const { error } = await supabase.from('clientes').delete().eq('id', cliente.id);
+    setExcluindo(false);
+    if (!error) {
+      await onAtualizar();
+      onFechar();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-slate-50 w-full max-w-2xl rounded-lg shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="p-3 border-b border-slate-200 bg-white flex justify-between items-center sticky top-0 z-10">
-          <div className="min-w-0">
-            <h2 className="font-bold text-slate-800 text-sm truncate">{cliente.razao_social}</h2>
-            <p className="text-[11px] text-slate-400">
-              {cliente.codigo_cliente} ·{' '}
-              <span className={status === 'critico' ? 'text-red-600 font-semibold' : status === 'atencao' ? 'text-amber-600 font-semibold' : 'text-emerald-600 font-semibold'}>
-                {dias === null ? 'sem histórico' : `${dias} dias sem contato`}
-              </span>
-            </p>
+        <div className="p-3 border-b border-slate-200 bg-white sticky top-0 z-10">
+          <div className="flex justify-between items-center">
+            <div className="min-w-0">
+              <h2 className="font-bold text-slate-800 text-sm truncate">{cliente.razao_social}</h2>
+              <p className="text-[11px] text-slate-400">
+                {cliente.codigo_cliente} ·{' '}
+                <span className={status === 'critico' ? 'text-red-600 font-semibold' : status === 'atencao' ? 'text-amber-600 font-semibold' : 'text-emerald-600 font-semibold'}>
+                  {dias === null ? 'sem histórico' : `${dias} dias sem contato`}
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <BotoesContato telefone={cliente.telefone} endereco={contrato.endereco_entrega} />
+              <button onClick={() => setConfirmandoExclusao(true)} className="text-slate-300 hover:text-red-500 p-1" title="Excluir cliente">
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button onClick={onFechar} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <BotoesContato telefone={cliente.telefone} endereco={contrato.endereco_entrega} />
-            <button onClick={onFechar} className="text-slate-400 hover:text-slate-600 p-1">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          {confirmandoExclusao && (
+            <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2 flex items-center justify-between gap-2">
+              <p className="text-[11px] text-red-700">Excluir {cliente.razao_social} e todo o histórico dele? Não dá pra desfazer.</p>
+              <div className="flex gap-1.5 shrink-0">
+                <button onClick={() => setConfirmandoExclusao(false)} className="text-[11px] font-semibold text-slate-500 px-2 py-1 hover:bg-white rounded">
+                  Cancelar
+                </button>
+                <button
+                  onClick={excluirCliente}
+                  disabled={excluindo}
+                  className="text-[11px] font-bold text-white bg-red-600 hover:bg-red-700 px-2 py-1 rounded disabled:opacity-50"
+                >
+                  {excluindo ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-3 space-y-3">
@@ -160,6 +199,16 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
             <Campo label="Situação" value={contrato.situacao} onChange={(v) => setContrato((d) => ({ ...d, situacao: v }))} />
             <Campo label="Início" tipo="date" value={contrato.data_inicio} onChange={(v) => setContrato((d) => ({ ...d, data_inicio: v }))} />
             <Campo label="Término" tipo="date" value={contrato.data_termino} onChange={(v) => setContrato((d) => ({ ...d, data_termino: v }))} />
+            {contrato.data_termino && (
+              <p className="text-[11px] text-slate-400 col-span-2 -mt-1">
+                {(() => {
+                  const d = diasEntre(contrato.data_termino);
+                  if (d === null) return null;
+                  if (d < 0) return <span className="text-red-600 font-semibold">Contrato venceu há {Math.abs(d)} dias</span>;
+                  return <span className={d <= 30 ? 'text-red-600 font-semibold' : d <= 90 ? 'text-amber-600 font-semibold' : 'text-slate-500'}>Faltam {d} dias para o contrato terminar</span>;
+                })()}
+              </p>
+            )}
             <Campo label="Modelo de tanque" value={contrato.modelo_recipiente} onChange={(v) => setContrato((d) => ({ ...d, modelo_recipiente: v }))} />
             <Campo label="Qtde. recipiente" tipo="number" value={contrato.qtde_recipiente} onChange={(v) => setContrato((d) => ({ ...d, qtde_recipiente: v }))} />
             <Campo label="Preço atual (R$)" tipo="number" value={contrato.preco_atual} onChange={(v) => setContrato((d) => ({ ...d, preco_atual: v }))} />
@@ -210,9 +259,14 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
                 <p className="text-xs text-slate-400 p-3">Nenhum registro ainda.</p>
               )}
               {cliente.historico.map((h) => (
-                <div key={h.id} className="px-3 py-2">
-                  <p className="text-[10px] text-slate-400">{formatarDataHora(h.created_at)}</p>
-                  <p className="text-xs text-slate-700">{h.descricao}</p>
+                <div key={h.id} className="px-3 py-2 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-400">{formatarDataHora(h.created_at)}</p>
+                    <p className="text-xs text-slate-700">{h.descricao}</p>
+                  </div>
+                  <button onClick={() => removerHistorico(h.id)} className="text-slate-300 hover:text-red-500 shrink-0 p-0.5">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               ))}
             </div>
