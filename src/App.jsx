@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Loader2, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Users, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useCRMData } from './hooks/useCRMData';
 import Dashboard from './components/Dashboard';
 import ListaClientes from './components/ListaClientes';
@@ -21,9 +21,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="bg-slate-800 text-white px-4 py-3 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <h1 className="font-bold text-sm">Acompanhamento de Clientes</h1>
-          {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-300" />}
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {aba === 'clientes' && (
+              <button
+                onClick={() => setAba('hoje')}
+                className="text-slate-300 hover:text-white p-1 -ml-1 shrink-0"
+                aria-label="Voltar"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <h1 className="font-bold text-sm truncate">
+              {aba === 'clientes' ? 'Clientes' : 'Acompanhamento de Clientes'}
+            </h1>
+          </div>
+          {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-300 shrink-0" />}
         </div>
       </header>
 
