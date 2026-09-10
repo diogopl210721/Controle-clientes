@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Send, Loader2, Save } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { formatarDataHora, diasSemInteracao, statusInteracao } from '../lib/helpers';
-import { FASES, PRIORIDADES } from '../lib/fases';
+import { PRIORIDADES } from '../lib/fases';
 import BotoesContato from './BotoesContato';
 
 function Campo({ label, value, onChange, tipo = 'text', className = '' }) {
@@ -98,7 +98,6 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
     setSalvandoAcomp(true);
     const payload = {
       cliente_id: cliente.id,
-      fase_atual: acomp.fase_atual || 'aguardando_documentacao',
       prioridade: acomp.prioridade || 'normal',
       updated_at: new Date().toISOString(),
     };
@@ -170,19 +169,7 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
           </Bloco>
 
           <Bloco titulo="Acompanhamento" onSalvar={salvarAcompanhamento} salvando={salvandoAcomp}>
-            <div>
-              <label className="text-[11px] font-medium text-slate-500 block mb-0.5">Fase atual</label>
-              <select
-                value={acomp.fase_atual || 'aguardando_documentacao'}
-                onChange={(e) => setAcomp((d) => ({ ...d, fase_atual: e.target.value }))}
-                className="w-full p-1.5 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
-              >
-                {FASES.map((f) => (
-                  <option key={f.valor} value={f.valor}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
+            <div className="col-span-2">
               <label className="text-[11px] font-medium text-slate-500 block mb-0.5">Prioridade</label>
               <select
                 value={acomp.prioridade || 'normal'}

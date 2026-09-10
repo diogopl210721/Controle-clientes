@@ -1,9 +1,9 @@
 export const MOTIVOS = [
-  { valor: 'troca_cnpj', label: 'Troca de CNPJ' },
-  { valor: 'alteracao_endereco', label: 'Alteração de Endereço' },
-  { valor: 'redimensionar', label: 'Redimensionar' },
-  { valor: 'implantacao_conta_sim', label: 'Implantação Conta SIM' },
-  { valor: 'renegociacao_preco', label: 'Renegociação de Preço' },
+  { valor: 'troca_cnpj', label: 'Troca de CNPJ', aliases: ['troca de titularidade', 'titularidade'] },
+  { valor: 'alteracao_endereco', label: 'Alteração de Endereço', aliases: [] },
+  { valor: 'redimensionar', label: 'Redimensionar', aliases: ['redimensionamento'] },
+  { valor: 'implantacao_conta_sim', label: 'Implantação Conta SIM', aliases: ['conta sim'] },
+  { valor: 'renegociacao_preco', label: 'Renegociação de Preço', aliases: ['renegociação de contrato'] },
 ];
 
 export const TIPOS_CLIENTE = [

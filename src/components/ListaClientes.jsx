@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { statusInteracao, diasSemInteracao } from '../lib/helpers';
-import { labelFase, corFase, FASES } from '../lib/fases';
 import BotoesContato from './BotoesContato';
 
 const CORES_STATUS = {
@@ -12,22 +11,19 @@ const CORES_STATUS = {
 
 export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente }) {
   const [busca, setBusca] = useState('');
-  const [filtroFase, setFiltroFase] = useState('todas');
 
   const filtrados = useMemo(() => {
     const termo = busca.toLowerCase();
-    return clientes.filter((c) => {
-      const passaBusca =
-        !termo ||
+    if (!termo) return clientes;
+    return clientes.filter(
+      (c) =>
         c.razao_social?.toLowerCase().includes(termo) ||
         c.codigo_cliente?.toLowerCase().includes(termo) ||
         c.nome_fantasia?.toLowerCase().includes(termo) ||
         c.telefone?.toLowerCase().includes(termo) ||
-        c.nome_contato?.toLowerCase().includes(termo);
-      const passaFase = filtroFase === 'todas' || c.acompanhamento?.fase_atual === filtroFase;
-      return passaBusca && passaFase;
-    });
-  }, [clientes, busca, filtroFase]);
+        c.nome_contato?.toLowerCase().includes(termo)
+    );
+  }, [clientes, busca]);
 
   return (
     <div className="space-y-3">
@@ -50,24 +46,6 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
         </button>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        <button
-          onClick={() => setFiltroFase('todas')}
-          className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${filtroFase === 'todas' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'}`}
-        >
-          Todas ({clientes.length})
-        </button>
-        {FASES.map((f) => (
-          <button
-            key={f.valor}
-            onClick={() => setFiltroFase(f.valor)}
-            className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${filtroFase === f.valor ? 'bg-slate-800 text-white border-slate-800' : corFase(f.valor)}`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
         {filtrados.length === 0 && (
           <p className="text-xs text-slate-400 p-4 text-center">Nenhum cliente encontrado.</p>
@@ -85,12 +63,7 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
             >
               <span className={`w-2 h-2 rounded-full shrink-0 ${CORES_STATUS[status]}`} title={`${dias ?? '—'} dias sem contato`} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-semibold text-slate-800 truncate">{c.razao_social}</p>
-                  <span className={`shrink-0 text-[9px] font-semibold px-1 py-0.5 rounded border ${corFase(c.acompanhamento?.fase_atual)}`}>
-                    {labelFase(c.acompanhamento?.fase_atual)}
-                  </span>
-                </div>
+                <p className="text-xs font-semibold text-slate-800 truncate">{c.razao_social}</p>
                 <p className="text-[11px] text-slate-500 truncate">
                   {ultimaNota || `${c.codigo_cliente}${c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} — sem registros ainda`}
                 </p>

@@ -1,7 +1,6 @@
 import React from 'react';
-import { AlertTriangle, CalendarClock, PieChart } from 'lucide-react';
+import { AlertTriangle, CalendarClock } from 'lucide-react';
 import { diasSemInteracao, statusInteracao, diasEntre } from '../lib/helpers';
-import { FASES, corFase } from '../lib/fases';
 
 function CardSecao({ icone: Icone, titulo, corIcone, children, vazio }) {
   return (
@@ -49,12 +48,6 @@ export default function Dashboard({ clientes, onSelecionarCliente }) {
     .filter((c) => c.contrato?.data_termino && diasEntre(c.contrato.data_termino) >= 0 && diasEntre(c.contrato.data_termino) <= 90)
     .sort((a, b) => diasEntre(a.contrato.data_termino) - diasEntre(b.contrato.data_termino));
 
-  const totalPorFase = FASES.map((f) => ({
-    ...f,
-    total: clientes.filter((c) => (c.acompanhamento?.fase_atual || 'aguardando_documentacao') === f.valor).length,
-  }));
-  const maxFase = Math.max(1, ...totalPorFase.map((f) => f.total));
-
   return (
     <div className="space-y-4">
       {/* Resumo rápido */}
@@ -98,27 +91,6 @@ export default function Dashboard({ clientes, onSelecionarCliente }) {
           />
         ))}
       </CardSecao>
-
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
-          <PieChart className="w-4 h-4 text-slate-500" />
-          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Clientes por fase</h3>
-        </div>
-        <div className="p-3 space-y-1.5">
-          {totalPorFase.map((f) => (
-            <div key={f.valor} className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-600 w-40 shrink-0 truncate">{f.label}</span>
-              <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${corFase(f.valor).split(' ')[0].replace('100', '400')}`}
-                  style={{ width: `${(f.total / maxFase) * 100}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-bold text-slate-500 w-4 text-right">{f.total}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
