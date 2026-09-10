@@ -61,6 +61,7 @@ export default function App() {
             clientes={clientes}
             onSelecionarCliente={(c) => setClienteSelecionadoId(c.id)}
             onNovoCliente={() => setModalNovoAberto(true)}
+            onAtualizar={recarregar}
           />
         )}
 
