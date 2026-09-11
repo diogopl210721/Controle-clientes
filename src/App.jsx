@@ -9,7 +9,7 @@ import DocumentosNecessarios from './components/DocumentosNecessarios';
 
 const TITULOS = {
   dashboard: 'Dashboard',
-  clientes: 'Clientes',
+  clientes: 'Atendimentos',
   documentos: 'Documentação Necessária',
 };
 
@@ -112,7 +112,7 @@ export default function App() {
             <span className={`p-1.5 rounded-full ${aba === 'clientes' ? 'bg-blue-50' : ''}`}>
               <Users className="w-4 h-4" />
             </span>
-            Clientes ({clientes.length})
+            Atendimentos ({clientes.length})
           </button>
           <button
             onClick={() => setAba('documentos')}

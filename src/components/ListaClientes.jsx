@@ -300,6 +300,11 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
     else onAtualizar();
   };
 
+  const consultores = useMemo(
+    () => [...new Set(clientes.map((c) => c.consultor).filter(Boolean))].sort(),
+    [clientes]
+  );
+
   const rotuloFiltro = filtro === 'parados' ? 'Parados > 5 dias' : filtro === 'vencimento' ? 'Contratos < 90 dias' : null;
 
   return (
@@ -310,7 +315,7 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
           onClick={() => onMudarAba('ativos')}
           className={`flex-1 text-xs font-bold py-2 rounded-xl transition-all ${aba === 'ativos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
         >
-          Atendimentos ({ativos.length})
+          Em andamento ({ativos.length})
         </button>
         <button
           onClick={() => onMudarAba('concluidos')}
@@ -339,24 +344,34 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
         </button>
       </div>
 
-      {(rotuloFiltro || consultor) && (
+      {consultores.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          <button
+            onClick={() => onMudarConsultor('')}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${!consultor ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'}`}
+          >
+            Todos
+          </button>
+          {consultores.map((nome) => (
+            <button
+              key={nome}
+              onClick={() => onMudarConsultor(consultor === nome ? '' : nome)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${consultor === nome ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200'}`}
+            >
+              {nome}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {rotuloFiltro && (
         <div className="flex flex-wrap gap-1.5">
-          {rotuloFiltro && (
-            <button
-              onClick={() => onMudarFiltro(null)}
-              className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 flex items-center gap-1"
-            >
-              {rotuloFiltro} <X className="w-3 h-3" />
-            </button>
-          )}
-          {consultor && (
-            <button
-              onClick={() => onMudarConsultor('')}
-              className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 flex items-center gap-1"
-            >
-              Consultor: {consultor} <X className="w-3 h-3" />
-            </button>
-          )}
+          <button
+            onClick={() => onMudarFiltro(null)}
+            className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 flex items-center gap-1"
+          >
+            {rotuloFiltro} <X className="w-3 h-3" />
+          </button>
         </div>
       )}
 
