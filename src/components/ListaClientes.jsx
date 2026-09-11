@@ -305,16 +305,16 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
   return (
     <div className="space-y-3">
       {/* Abas */}
-      <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
+      <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 border border-slate-100">
         <button
           onClick={() => onMudarAba('ativos')}
-          className={`flex-1 text-xs font-bold py-1.5 rounded-md ${aba === 'ativos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+          className={`flex-1 text-xs font-bold py-2 rounded-xl transition-all ${aba === 'ativos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
         >
           Atendimentos ({ativos.length})
         </button>
         <button
           onClick={() => onMudarAba('concluidos')}
-          className={`flex-1 text-xs font-bold py-1.5 rounded-md ${aba === 'concluidos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+          className={`flex-1 text-xs font-bold py-2 rounded-xl transition-all ${aba === 'concluidos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
         >
           Concluídos ({concluidos.length})
         </button>
@@ -322,18 +322,18 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
 
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Buscar por código, cliente, fantasia, telefone..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="w-full pl-8 pr-2 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            className="w-full pl-9 pr-2 py-2.5 text-xs bg-white border border-slate-200 rounded-full shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:outline-none"
           />
         </div>
         <button
           onClick={onNovoCliente}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"
+          className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-full text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm shadow-blue-600/30 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" /> Novo
         </button>
@@ -361,7 +361,7 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
       )}
 
       {aba === 'ativos' && (
-        <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
           {filtrados.length === 0 && (
             <p className="text-xs text-slate-400 p-4 text-center">Nenhum cliente encontrado.</p>
           )}
@@ -372,19 +372,19 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
       )}
 
       {aba === 'concluidos' && (
-        <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 overflow-hidden">
           {concluidosFiltrados.length === 0 && (
             <p className="text-xs text-slate-400 p-4 text-center">Nenhum atendimento concluído ainda.</p>
           )}
           {concluidosFiltrados.map((c) => (
-            <div key={c.id} className="px-3 py-2.5 flex items-center gap-2.5">
+            <div key={c.id} className="px-3.5 py-3 flex items-center gap-2.5">
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-700 truncate">{c.razao_social}</p>
                 <p className="text-[10px] text-slate-400 truncate">
                   {c.codigo_cliente}{c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} · Encerrado em {formatarDataHora(c.acompanhamento?.encerrado_em)}
                 </p>
               </div>
-              <button onClick={() => reabrir(c)} className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded shrink-0">
+              <button onClick={() => reabrir(c)} className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-full shrink-0 transition-colors">
                 Reabrir
               </button>
               <button onClick={() => onSelecionarCliente(c)} className="text-slate-300 hover:text-slate-600 p-0.5 shrink-0">
