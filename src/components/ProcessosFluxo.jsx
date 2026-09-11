@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Plus, Trash2, Edit3, Save, X, ChevronRight, Workflow } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { MOTIVOS, labelMotivo } from '../lib/documentos';
 
 function EtapaCard({ etapa, numero, ultima, onSalvar, onExcluir }) {
   const [editando, setEditando] = useState(false);
@@ -80,34 +79,65 @@ function EtapaCard({ etapa, numero, ultima, onSalvar, onExcluir }) {
 }
 
 export default function ProcessosFluxo() {
+  const [categorias, setCategorias] = useState([]);
   const [etapas, setEtapas] = useState([]);
   const [carregando, setCarregando] = useState(true);
-  const [motivoAberto, setMotivoAberto] = useState(null);
+  const [categoriaAberta, setCategoriaAberta] = useState(null); // objeto { id, nome } | null
   const [novoTitulo, setNovoTitulo] = useState('');
   const [salvandoNova, setSalvandoNova] = useState(false);
+  const [novoProcesso, setNovoProcesso] = useState('');
+  const [salvandoProcesso, setSalvandoProcesso] = useState(false);
+  const [editandoNomeId, setEditandoNomeId] = useState(null);
+  const [nomeEditado, setNomeEditado] = useState('');
 
   const carregar = useCallback(async () => {
     setCarregando(true);
-    const { data, error } = await supabase
-      .from('processos_etapas')
-      .select('*')
-      .order('motivo', { ascending: true })
-      .order('etapa_numero', { ascending: true });
-    if (!error) setEtapas(data || []);
+    const [{ data: cats, error: e1 }, { data: et, error: e2 }] = await Promise.all([
+      supabase.from('processos_categorias').select('*').order('ordem', { ascending: true }),
+      supabase.from('processos_etapas').select('*').order('categoria_id', { ascending: true }).order('etapa_numero', { ascending: true }),
+    ]);
+    if (!e1) setCategorias(cats || []);
+    if (!e2) setEtapas(et || []);
     setCarregando(false);
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const etapasDoMotivo = motivoAberto ? etapas.filter((e) => e.motivo === motivoAberto) : [];
+  const etapasDaCategoria = categoriaAberta ? etapas.filter((e) => e.categoria_id === categoriaAberta.id) : [];
+
+  const adicionarProcesso = async () => {
+    if (!novoProcesso.trim()) return;
+    setSalvandoProcesso(true);
+    const ordem = categorias.length > 0 ? Math.max(...categorias.map((c) => c.ordem || 0)) + 1 : 1;
+    const { error } = await supabase.from('processos_categorias').insert({ nome: novoProcesso.trim(), ordem });
+    setSalvandoProcesso(false);
+    if (!error) {
+      setNovoProcesso('');
+      carregar();
+    }
+  };
+
+  const renomearProcesso = async (id) => {
+    if (!nomeEditado.trim()) return;
+    await supabase.from('processos_categorias').update({ nome: nomeEditado.trim() }).eq('id', id);
+    setEditandoNomeId(null);
+    carregar();
+  };
+
+  const excluirProcesso = async (id) => {
+    if (!window.confirm('Excluir esse processo e todas as etapas dele?')) return;
+    await supabase.from('processos_categorias').delete().eq('id', id);
+    if (categoriaAberta?.id === id) setCategoriaAberta(null);
+    carregar();
+  };
 
   const adicionarEtapa = async () => {
-    if (!novoTitulo.trim() || !motivoAberto) return;
+    if (!novoTitulo.trim() || !categoriaAberta) return;
     setSalvandoNova(true);
-    const proximoNumero = etapasDoMotivo.length > 0 ? Math.max(...etapasDoMotivo.map((e) => e.etapa_numero)) + 1 : 1;
+    const proximoNumero = etapasDaCategoria.length > 0 ? Math.max(...etapasDaCategoria.map((e) => e.etapa_numero)) + 1 : 1;
     const { error } = await supabase
       .from('processos_etapas')
-      .insert({ motivo: motivoAberto, etapa_numero: proximoNumero, titulo: novoTitulo.trim() });
+      .insert({ categoria_id: categoriaAberta.id, etapa_numero: proximoNumero, titulo: novoTitulo.trim() });
     setSalvandoNova(false);
     if (!error) {
       setNovoTitulo('');
@@ -125,14 +155,14 @@ export default function ProcessosFluxo() {
     carregar();
   };
 
-  if (motivoAberto) {
+  if (categoriaAberta) {
     return (
       <div className="space-y-3">
-        <button onClick={() => setMotivoAberto(null)} className="text-xs font-semibold text-blue-600 flex items-center gap-1">
+        <button onClick={() => setCategoriaAberta(null)} className="text-xs font-semibold text-blue-600 flex items-center gap-1">
           <X className="w-3.5 h-3.5" /> Voltar para processos
         </button>
 
-        <h3 className="text-sm font-bold text-slate-800">{labelMotivo(motivoAberto)}</h3>
+        <h3 className="text-sm font-bold text-slate-800">{categoriaAberta.nome}</h3>
 
         {carregando && (
           <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
@@ -140,15 +170,15 @@ export default function ProcessosFluxo() {
 
         {!carregando && (
           <div>
-            {etapasDoMotivo.length === 0 && (
+            {etapasDaCategoria.length === 0 && (
               <p className="text-xs text-slate-400 mb-3">Nenhuma etapa cadastrada ainda. Adicione a primeira abaixo.</p>
             )}
-            {etapasDoMotivo.map((etapa, i) => (
+            {etapasDaCategoria.map((etapa, i) => (
               <EtapaCard
                 key={etapa.id}
                 etapa={etapa}
                 numero={i + 1}
-                ultima={i === etapasDoMotivo.length - 1}
+                ultima={i === etapasDaCategoria.length - 1}
                 onSalvar={salvarEtapa}
                 onExcluir={excluirEtapa}
               />
@@ -179,27 +209,72 @@ export default function ProcessosFluxo() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-slate-400 px-0.5">Escolha um processo para ver ou montar o passo a passo.</p>
-      <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
-        {MOTIVOS.map((m) => {
-          const total = etapas.filter((e) => e.motivo === m.valor).length;
-          return (
-            <button
-              key={m.valor}
-              onClick={() => setMotivoAberto(m.valor)}
-              className="w-full text-left px-3 py-3 hover:bg-slate-50 transition-colors flex items-center justify-between gap-2"
-            >
-              <div className="flex items-center gap-2.5">
-                <Workflow className="w-4 h-4 text-blue-500" />
-                <span className="text-xs font-semibold text-slate-700">{m.label}</span>
+      <p className="text-[11px] text-slate-400 px-0.5">Escolha um processo para ver/montar o passo a passo, edite o nome ou crie um novo.</p>
+
+      {carregando && (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+      )}
+
+      {!carregando && (
+        <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden">
+          {categorias.map((cat) => {
+            const total = etapas.filter((e) => e.categoria_id === cat.id).length;
+            if (editandoNomeId === cat.id) {
+              return (
+                <div key={cat.id} className="px-3 py-2.5 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={nomeEditado}
+                    onChange={(e) => setNomeEditado(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && renomearProcesso(cat.id)}
+                    autoFocus
+                    className="flex-1 text-xs font-semibold border border-blue-300 rounded px-2 py-1.5 focus:outline-none"
+                  />
+                  <button onClick={() => renomearProcesso(cat.id)} className="text-blue-600 p-1"><Save className="w-4 h-4" /></button>
+                  <button onClick={() => setEditandoNomeId(null)} className="text-slate-400 p-1"><X className="w-4 h-4" /></button>
+                </div>
+              );
+            }
+            return (
+              <div key={cat.id} className="px-3 py-3 flex items-center justify-between gap-2 hover:bg-slate-50">
+                <button onClick={() => setCategoriaAberta(cat)} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+                  <Workflow className="w-4 h-4 text-blue-500 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-700 truncate">{cat.nome}</span>
+                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] text-slate-400">{total} etapa{total !== 1 ? 's' : ''}</span>
+                  <button onClick={() => { setEditandoNomeId(cat.id); setNomeEditado(cat.nome); }} className="text-slate-300 hover:text-blue-600 p-1">
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => excluirProcesso(cat.id)} className="text-slate-300 hover:text-red-500 p-1">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setCategoriaAberta(cat)}>
+                    <ChevronRight className="w-4 h-4 text-slate-300" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-slate-400">{total} etapa{total !== 1 ? 's' : ''}</span>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-              </div>
-            </button>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
+
+      <div className="bg-white border border-dashed border-slate-300 rounded-xl p-2 flex gap-2">
+        <input
+          type="text"
+          placeholder="Nome do novo processo..."
+          value={novoProcesso}
+          onChange={(e) => setNovoProcesso(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && adicionarProcesso()}
+          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <button
+          onClick={adicionarProcesso}
+          disabled={salvandoProcesso || !novoProcesso.trim()}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 rounded-lg text-xs font-bold flex items-center gap-1"
+        >
+          {salvandoProcesso ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Processo
+        </button>
       </div>
     </div>
   );
