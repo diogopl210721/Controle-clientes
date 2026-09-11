@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Check, Archive, X } from 'lucide-react';
+import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Check, Archive, X, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { statusInteracao, diasSemInteracao, diasEntre, formatarDataHora } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
@@ -241,7 +241,7 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
   );
 }
 
-export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar, filtro, onMudarFiltro, aba, onMudarAba, consultor, onMudarConsultor }) {
+export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar, filtro, onMudarFiltro, aba, onMudarAba, consultor, onMudarConsultor, onVoltarDashboard }) {
   const [busca, setBusca] = useState('');
 
   const ativos = clientes.filter((c) => !c.acompanhamento?.encerrado);
@@ -309,6 +309,21 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
 
   return (
     <div className="space-y-3">
+      {consultor && (
+        <div className="bg-blue-600 text-white rounded-2xl p-3 flex items-center justify-between gap-2 shadow-sm shadow-blue-600/30">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-blue-100 uppercase tracking-wide">Atendimentos de</p>
+            <p className="text-sm font-bold truncate">{consultor}</p>
+          </div>
+          <button
+            onClick={onVoltarDashboard}
+            className="shrink-0 text-[11px] font-bold bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
+          </button>
+        </div>
+      )}
+
       {/* Abas */}
       <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 border border-slate-100">
         <button

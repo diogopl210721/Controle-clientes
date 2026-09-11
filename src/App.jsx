@@ -88,6 +88,7 @@ export default function App() {
             onMudarAba={setSubAbaClientes}
             consultor={consultorClientes}
             onMudarConsultor={setConsultorClientes}
+            onVoltarDashboard={() => setAba('dashboard')}
           />
         )}
 
