@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { Users, FileText, Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
 import { useCRMData } from './hooks/useCRMData';
+import Dashboard from './components/Dashboard';
 import ListaClientes from './components/ListaClientes';
 import FichaCliente from './components/FichaCliente';
 import ModalNovoCliente from './components/ModalNovoCliente';
 import DocumentosNecessarios from './components/DocumentosNecessarios';
 
 const TITULOS = {
-  clientes: 'CRM Clientes',
+  dashboard: 'Dashboard',
+  clientes: 'Clientes',
   documentos: 'Documentação Necessária',
 };
 
 export default function App() {
   const { clientes, carregando, erro, recarregar } = useCRMData();
-  const [aba, setAba] = useState('clientes'); // 'clientes' | 'documentos'
+  const [aba, setAba] = useState('dashboard'); // 'dashboard' | 'clientes' | 'documentos'
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState(null);
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
+  const [filtroClientes, setFiltroClientes] = useState(null); // null | 'parados' | 'vencimento'
+  const [subAbaClientes, setSubAbaClientes] = useState('ativos'); // 'ativos' | 'concluidos'
 
   const clienteSelecionado = clientes.find((c) => c.id === clienteSelecionadoId) || null;
 
@@ -23,14 +27,20 @@ export default function App() {
     await recarregar();
   };
 
+  const irParaClientesComFiltro = (filtro, subAba) => {
+    setFiltroClientes(filtro);
+    setSubAbaClientes(subAba);
+    setAba('clientes');
+  };
+
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-30 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            {aba !== 'clientes' && (
+            {aba !== 'dashboard' && (
               <button
-                onClick={() => setAba('clientes')}
+                onClick={() => setAba('dashboard')}
                 className="text-slate-300 hover:text-white p-1 -ml-1 shrink-0"
                 aria-label="Voltar"
               >
@@ -60,12 +70,20 @@ export default function App() {
           </div>
         )}
 
+        {!erro && aba === 'dashboard' && (
+          <Dashboard clientes={clientes} onAbrirFiltro={irParaClientesComFiltro} />
+        )}
+
         {!erro && aba === 'clientes' && (
           <ListaClientes
             clientes={clientes}
             onSelecionarCliente={(c) => setClienteSelecionadoId(c.id)}
             onNovoCliente={() => setModalNovoAberto(true)}
             onAtualizar={recarregar}
+            filtro={filtroClientes}
+            onMudarFiltro={setFiltroClientes}
+            aba={subAbaClientes}
+            onMudarAba={setSubAbaClientes}
           />
         )}
 
@@ -74,6 +92,12 @@ export default function App() {
 
       <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 flex z-30">
         <div className="max-w-2xl mx-auto flex w-full">
+          <button
+            onClick={() => setAba('dashboard')}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${aba === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`}
+          >
+            <LayoutDashboard className="w-4 h-4" /> Dashboard
+          </button>
           <button
             onClick={() => setAba('clientes')}
             className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold ${aba === 'clientes' ? 'text-blue-600' : 'text-slate-400'}`}

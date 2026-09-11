@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Clock, AlertTriangle, CalendarClock, CheckCircle2, Check, Archive } from 'lucide-react';
+import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Check, Archive } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { statusInteracao, diasSemInteracao, diasEntre, formatarDataHora } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
@@ -234,13 +234,17 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
   );
 }
 
-export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar }) {
+export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar, filtro, onMudarFiltro, aba, onMudarAba }) {
   const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState(null); // null | 'parados' | 'vencimento'
-  const [aba, setAba] = useState('ativos'); // 'ativos' | 'concluidos'
+  const [consultor, setConsultor] = useState('');
 
   const ativos = clientes.filter((c) => !c.acompanhamento?.encerrado);
   const concluidos = clientes.filter((c) => c.acompanhamento?.encerrado);
+
+  const consultores = useMemo(
+    () => [...new Set(clientes.map((c) => c.consultor).filter(Boolean))].sort(),
+    [clientes]
+  );
 
   const comMetricas = useMemo(
     () =>
@@ -251,10 +255,6 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
       })),
     [ativos]
   );
-
-  const totalParados = comMetricas.filter((c) => c._diasSemContato !== null && c._diasSemContato >= 5).length;
-  const totalVencendo = comMetricas.filter((c) => c._diasContrato !== null && c._diasContrato >= 0 && c._diasContrato <= 90).length;
-  const totalEmDia = comMetricas.length - totalParados;
 
   const filtrados = useMemo(() => {
     const termo = busca.toLowerCase();
@@ -269,23 +269,27 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
           c.nome_contato?.toLowerCase().includes(termo)
         );
       })
+      .filter((c) => !consultor || c.consultor === consultor)
       .filter((c) => {
         if (filtro === 'parados') return c._diasSemContato !== null && c._diasSemContato >= 5;
         if (filtro === 'vencimento') return c._diasContrato !== null && c._diasContrato >= 0 && c._diasContrato <= 90;
         return true;
       });
-  }, [comMetricas, busca, filtro]);
+  }, [comMetricas, busca, filtro, consultor]);
 
   const concluidosFiltrados = useMemo(() => {
     const termo = busca.toLowerCase();
-    if (!termo) return concluidos;
-    return concluidos.filter(
-      (c) =>
-        c.razao_social?.toLowerCase().includes(termo) ||
-        c.codigo_cliente?.toLowerCase().includes(termo) ||
-        c.nome_fantasia?.toLowerCase().includes(termo)
-    );
-  }, [concluidos, busca]);
+    return concluidos
+      .filter((c) => !consultor || c.consultor === consultor)
+      .filter((c) => {
+        if (!termo) return true;
+        return (
+          c.razao_social?.toLowerCase().includes(termo) ||
+          c.codigo_cliente?.toLowerCase().includes(termo) ||
+          c.nome_fantasia?.toLowerCase().includes(termo)
+        );
+      });
+  }, [concluidos, busca, consultor]);
 
   const reabrir = async (c) => {
     const payload = { cliente_id: c.id, encerrado: false, encerrado_em: null, updated_at: new Date().toISOString() };
@@ -295,71 +299,20 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
     if (!error) onAtualizar();
   };
 
-  const alternarFiltro = (valor) => setFiltro((atual) => (atual === valor ? null : valor));
+  const alternarFiltro = (valor) => onMudarFiltro(filtro === valor ? null : valor);
 
   return (
     <div className="space-y-3">
-      {/* Indicadores — clicáveis para filtrar a lista abaixo */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        <button
-          onClick={() => { setAba('ativos'); setFiltro(null); }}
-          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'ativos' && filtro === null ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-500">Total ativos</span>
-            <Clock className="w-3.5 h-3.5 text-blue-500" />
-          </div>
-          <p className="text-lg font-bold text-blue-600">{ativos.length}</p>
-        </button>
-        <button
-          onClick={() => { setAba('ativos'); alternarFiltro('parados'); }}
-          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'ativos' && filtro === 'parados' ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-500">Parados &gt; 5 dias</span>
-            <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-          </div>
-          <p className="text-lg font-bold text-red-600">{totalParados}</p>
-        </button>
-        <button
-          onClick={() => { setAba('ativos'); alternarFiltro('vencimento'); }}
-          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'ativos' && filtro === 'vencimento' ? 'border-orange-400 ring-1 ring-orange-400' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-500">Contratos &lt; 90 dias</span>
-            <CalendarClock className="w-3.5 h-3.5 text-orange-500" />
-          </div>
-          <p className="text-lg font-bold text-orange-600">{totalVencendo}</p>
-        </button>
-        <div className="text-left bg-white border border-slate-200 rounded-lg p-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-500">Em dia</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          </div>
-          <p className="text-lg font-bold text-emerald-600">{totalEmDia}</p>
-        </div>
-        <button
-          onClick={() => setAba('concluidos')}
-          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'concluidos' ? 'border-slate-400 ring-1 ring-slate-400' : 'border-slate-200'}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-500">Atendimentos concluídos</span>
-            <Archive className="w-3.5 h-3.5 text-slate-500" />
-          </div>
-          <p className="text-lg font-bold text-slate-600">{concluidos.length}</p>
-        </button>
-      </div>
-
       {/* Abas */}
       <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
         <button
-          onClick={() => setAba('ativos')}
+          onClick={() => onMudarAba('ativos')}
           className={`flex-1 text-xs font-bold py-1.5 rounded-md ${aba === 'ativos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
         >
           Atendimentos ({ativos.length})
         </button>
         <button
-          onClick={() => setAba('concluidos')}
+          onClick={() => onMudarAba('concluidos')}
           className={`flex-1 text-xs font-bold py-1.5 rounded-md ${aba === 'concluidos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
         >
           Concluídos ({concluidos.length})
@@ -377,28 +330,43 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
             className="w-full pl-8 pr-2 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
           />
         </div>
-        {aba === 'ativos' && (
-          <>
-            <button
-              onClick={() => alternarFiltro('parados')}
-              className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'parados' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}
-            >
-              &gt;5d
-            </button>
-            <button
-              onClick={() => alternarFiltro('vencimento')}
-              className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'vencimento' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200'}`}
-            >
-              &lt;90d
-            </button>
-          </>
-        )}
         <button
           onClick={onNovoCliente}
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"
         >
           <Plus className="w-3.5 h-3.5" /> Novo
         </button>
+      </div>
+
+      <div className="flex gap-2 items-center">
+        {consultores.length > 0 && (
+          <select
+            value={consultor}
+            onChange={(e) => setConsultor(e.target.value)}
+            className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none"
+          >
+            <option value="">Todos os consultores</option>
+            {consultores.map((nome) => (
+              <option key={nome} value={nome}>{nome}</option>
+            ))}
+          </select>
+        )}
+        {aba === 'ativos' && (
+          <>
+            <button
+              onClick={() => alternarFiltro('parados')}
+              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${filtro === 'parados' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}
+            >
+              &gt;5d
+            </button>
+            <button
+              onClick={() => alternarFiltro('vencimento')}
+              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${filtro === 'vencimento' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200'}`}
+            >
+              &lt;90d
+            </button>
+          </>
+        )}
       </div>
 
       {aba === 'ativos' && (
