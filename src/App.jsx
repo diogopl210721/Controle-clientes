@@ -20,6 +20,7 @@ export default function App() {
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
   const [filtroClientes, setFiltroClientes] = useState(null); // null | 'parados' | 'vencimento'
   const [subAbaClientes, setSubAbaClientes] = useState('ativos'); // 'ativos' | 'concluidos'
+  const [consultorClientes, setConsultorClientes] = useState('');
 
   const clienteSelecionado = clientes.find((c) => c.id === clienteSelecionadoId) || null;
 
@@ -27,9 +28,10 @@ export default function App() {
     await recarregar();
   };
 
-  const irParaClientesComFiltro = (filtro, subAba) => {
+  const irParaClientesComFiltro = (filtro, subAba, consultor = '') => {
     setFiltroClientes(filtro);
     setSubAbaClientes(subAba);
+    setConsultorClientes(consultor);
     setAba('clientes');
   };
 
@@ -84,6 +86,8 @@ export default function App() {
             onMudarFiltro={setFiltroClientes}
             aba={subAbaClientes}
             onMudarAba={setSubAbaClientes}
+            consultor={consultorClientes}
+            onMudarConsultor={setConsultorClientes}
           />
         )}
 

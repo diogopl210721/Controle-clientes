@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Check, Archive } from 'lucide-react';
+import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Check, Archive, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { statusInteracao, diasSemInteracao, diasEntre, formatarDataHora } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
@@ -90,27 +90,28 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
 
   const mudarPrioridade = async (valor) => {
     setSalvandoPrioridade(true);
-    const payload = { cliente_id: c.id, prioridade: valor, updated_at: new Date().toISOString() };
-    const { error } = c.acompanhamento?.id
-      ? await supabase.from('acompanhamento').update(payload).eq('id', c.acompanhamento.id)
-      : await supabase.from('acompanhamento').insert(payload);
+    const { error } = await supabase
+      .from('acompanhamento')
+      .upsert({ cliente_id: c.id, prioridade: valor, updated_at: new Date().toISOString() }, { onConflict: 'cliente_id' });
     setSalvandoPrioridade(false);
-    if (!error) onAtualizar();
+    if (error) console.error('Erro ao salvar prioridade:', error);
+    else onAtualizar();
   };
 
   const [encerrando, setEncerrando] = useState(false);
   const encerrarAtendimento = async () => {
     if (!window.confirm(`Encerrar o atendimento de ${c.razao_social}? Ele vai pra aba Concluídos.`)) return;
     setEncerrando(true);
-    const payload = { cliente_id: c.id, encerrado: true, encerrado_em: new Date().toISOString(), updated_at: new Date().toISOString() };
-    const { error } = c.acompanhamento?.id
-      ? await supabase.from('acompanhamento').update(payload).eq('id', c.acompanhamento.id)
-      : await supabase.from('acompanhamento').insert(payload);
+    const { error } = await supabase
+      .from('acompanhamento')
+      .upsert({ cliente_id: c.id, encerrado: true, encerrado_em: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'cliente_id' });
     setEncerrando(false);
-    if (!error) onAtualizar();
+    if (error) console.error('Erro ao encerrar atendimento:', error);
+    else onAtualizar();
   };
 
   const parar = (e) => e.stopPropagation();
+
 
   return (
     <div className="px-3 py-2.5">
@@ -234,17 +235,11 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
   );
 }
 
-export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar, filtro, onMudarFiltro, aba, onMudarAba }) {
+export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar, filtro, onMudarFiltro, aba, onMudarAba, consultor, onMudarConsultor }) {
   const [busca, setBusca] = useState('');
-  const [consultor, setConsultor] = useState('');
 
   const ativos = clientes.filter((c) => !c.acompanhamento?.encerrado);
   const concluidos = clientes.filter((c) => c.acompanhamento?.encerrado);
-
-  const consultores = useMemo(
-    () => [...new Set(clientes.map((c) => c.consultor).filter(Boolean))].sort(),
-    [clientes]
-  );
 
   const comMetricas = useMemo(
     () =>
@@ -292,14 +287,14 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
   }, [concluidos, busca, consultor]);
 
   const reabrir = async (c) => {
-    const payload = { cliente_id: c.id, encerrado: false, encerrado_em: null, updated_at: new Date().toISOString() };
-    const { error } = c.acompanhamento?.id
-      ? await supabase.from('acompanhamento').update(payload).eq('id', c.acompanhamento.id)
-      : await supabase.from('acompanhamento').insert(payload);
-    if (!error) onAtualizar();
+    const { error } = await supabase
+      .from('acompanhamento')
+      .upsert({ cliente_id: c.id, encerrado: false, encerrado_em: null, updated_at: new Date().toISOString() }, { onConflict: 'cliente_id' });
+    if (error) console.error('Erro ao reabrir atendimento:', error);
+    else onAtualizar();
   };
 
-  const alternarFiltro = (valor) => onMudarFiltro(filtro === valor ? null : valor);
+  const rotuloFiltro = filtro === 'parados' ? 'Parados > 5 dias' : filtro === 'vencimento' ? 'Contratos < 90 dias' : null;
 
   return (
     <div className="space-y-3">
@@ -338,36 +333,26 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
         </button>
       </div>
 
-      <div className="flex gap-2 items-center">
-        {consultores.length > 0 && (
-          <select
-            value={consultor}
-            onChange={(e) => setConsultor(e.target.value)}
-            className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none"
-          >
-            <option value="">Todos os consultores</option>
-            {consultores.map((nome) => (
-              <option key={nome} value={nome}>{nome}</option>
-            ))}
-          </select>
-        )}
-        {aba === 'ativos' && (
-          <>
+      {(rotuloFiltro || consultor) && (
+        <div className="flex flex-wrap gap-1.5">
+          {rotuloFiltro && (
             <button
-              onClick={() => alternarFiltro('parados')}
-              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${filtro === 'parados' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}
+              onClick={() => onMudarFiltro(null)}
+              className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 flex items-center gap-1"
             >
-              &gt;5d
+              {rotuloFiltro} <X className="w-3 h-3" />
             </button>
+          )}
+          {consultor && (
             <button
-              onClick={() => alternarFiltro('vencimento')}
-              className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${filtro === 'vencimento' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200'}`}
+              onClick={() => onMudarConsultor('')}
+              className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 flex items-center gap-1"
             >
-              &lt;90d
+              Consultor: {consultor} <X className="w-3 h-3" />
             </button>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {aba === 'ativos' && (
         <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">

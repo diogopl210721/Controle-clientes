@@ -99,16 +99,15 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
 
   const salvarAcompanhamento = async () => {
     setSalvandoAcomp(true);
-    const payload = {
-      cliente_id: cliente.id,
-      prioridade: acomp.prioridade || 'normal',
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = acomp.id
-      ? await supabase.from('acompanhamento').update(payload).eq('id', acomp.id)
-      : await supabase.from('acompanhamento').insert(payload);
+    const { error } = await supabase
+      .from('acompanhamento')
+      .upsert(
+        { cliente_id: cliente.id, prioridade: acomp.prioridade || 'normal', updated_at: new Date().toISOString() },
+        { onConflict: 'cliente_id' }
+      );
     setSalvandoAcomp(false);
-    if (!error) onAtualizar();
+    if (error) console.error('Erro ao salvar acompanhamento:', error);
+    else onAtualizar();
   };
 
   const adicionarHistorico = async () => {
@@ -148,11 +147,11 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
       encerrado_em: encerrarAgora ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     };
-    const { error } = acomp.id
-      ? await supabase.from('acompanhamento').update(payload).eq('id', acomp.id)
-      : await supabase.from('acompanhamento').insert(payload);
+    const { error } = await supabase.from('acompanhamento').upsert(payload, { onConflict: 'cliente_id' });
     setMudandoEncerramento(false);
-    if (!error) {
+    if (error) {
+      console.error('Erro ao encerrar/reabrir atendimento:', error);
+    } else {
       setAcomp((d) => ({ ...d, ...payload }));
       onAtualizar();
     }

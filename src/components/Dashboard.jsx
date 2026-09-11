@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, AlertTriangle, CalendarClock, CheckCircle2, Archive } from 'lucide-react';
+import { Clock, AlertTriangle, CalendarClock, CheckCircle2, Archive, Users } from 'lucide-react';
 import { diasSemInteracao, diasEntre } from '../lib/helpers';
 
 export default function Dashboard({ clientes, onAbrirFiltro }) {
@@ -19,11 +19,16 @@ export default function Dashboard({ clientes, onAbrirFiltro }) {
   const totalVencendo = comMetricas.filter((c) => c._diasContrato !== null && c._diasContrato >= 0 && c._diasContrato <= 90).length;
   const totalEmDia = comMetricas.length - totalParados;
 
+  const consultores = useMemo(
+    () => [...new Set(clientes.map((c) => c.consultor).filter(Boolean))].sort(),
+    [clientes]
+  );
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <button
-          onClick={() => onAbrirFiltro(null, 'ativos')}
+          onClick={() => onAbrirFiltro(null, 'ativos', '')}
           className="text-left bg-white border border-slate-200 rounded-lg p-3 hover:border-blue-300"
         >
           <div className="flex items-center justify-between">
@@ -34,7 +39,7 @@ export default function Dashboard({ clientes, onAbrirFiltro }) {
         </button>
 
         <button
-          onClick={() => onAbrirFiltro('parados', 'ativos')}
+          onClick={() => onAbrirFiltro('parados', 'ativos', '')}
           className="text-left bg-white border border-slate-200 rounded-lg p-3 hover:border-red-300"
         >
           <div className="flex items-center justify-between">
@@ -45,7 +50,7 @@ export default function Dashboard({ clientes, onAbrirFiltro }) {
         </button>
 
         <button
-          onClick={() => onAbrirFiltro('vencimento', 'ativos')}
+          onClick={() => onAbrirFiltro('vencimento', 'ativos', '')}
           className="text-left bg-white border border-slate-200 rounded-lg p-3 hover:border-orange-300"
         >
           <div className="flex items-center justify-between">
@@ -64,7 +69,7 @@ export default function Dashboard({ clientes, onAbrirFiltro }) {
         </div>
 
         <button
-          onClick={() => onAbrirFiltro(null, 'concluidos')}
+          onClick={() => onAbrirFiltro(null, 'concluidos', '')}
           className="col-span-2 text-left bg-white border border-slate-200 rounded-lg p-3 hover:border-slate-400"
         >
           <div className="flex items-center justify-between">
@@ -74,6 +79,26 @@ export default function Dashboard({ clientes, onAbrirFiltro }) {
           <p className="text-2xl font-bold text-slate-600">{concluidos.length}</p>
         </button>
       </div>
+
+      {consultores.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <Users className="w-4 h-4 text-slate-500" />
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Filtrar por consultor</h3>
+          </div>
+          <div className="p-2 flex flex-wrap gap-1.5">
+            {consultores.map((nome) => (
+              <button
+                key={nome}
+                onClick={() => onAbrirFiltro(null, 'ativos', nome)}
+                className="px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-slate-50 text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+              >
+                {nome}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
