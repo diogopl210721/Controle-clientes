@@ -27,15 +27,22 @@ export function useCRMData() {
       return;
     }
 
-    const normalizados = (data || []).map((c) => ({
-      ...c,
-      contrato: (c.contratos || [])[0] || null,
-      contratos: c.contratos || [],
-      acompanhamento: (c.acompanhamento || [])[0] || null,
-      historico: (c.historico || [])
-        .slice()
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
-    }));
+    const normalizados = (data || []).map((c) => {
+      // acompanhamento é 1-para-1 (cliente_id é único), o Supabase pode retornar
+      // como objeto único OU como array de 1 item dependendo da versão — tratamos os dois casos
+      const acompRaw = c.acompanhamento;
+      const acompanhamento = Array.isArray(acompRaw) ? (acompRaw[0] || null) : (acompRaw || null);
+
+      return {
+        ...c,
+        contrato: (c.contratos || [])[0] || null,
+        contratos: c.contratos || [],
+        acompanhamento,
+        historico: (c.historico || [])
+          .slice()
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+      };
+    });
 
     setClientes(normalizados);
     setCarregando(false);
