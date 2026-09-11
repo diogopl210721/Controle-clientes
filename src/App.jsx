@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, FileText, Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
+import { FileText, Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
 import { useCRMData } from './hooks/useCRMData';
 import Dashboard from './components/Dashboard';
 import ListaClientes from './components/ListaClientes';
@@ -53,6 +53,14 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-300" />}
+            {aba === 'dashboard' && (
+              <button
+                onClick={() => setAba('documentos')}
+                className="flex bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold items-center gap-1 transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" /> Docs
+              </button>
+            )}
             {aba === 'clientes' && (
               <button
                 onClick={() => setModalNovoAberto(true)}
@@ -65,7 +73,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto p-3 pb-20">
+      <main className="max-w-2xl mx-auto p-3 pb-6">
         {erro && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3 mb-3 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" /> {erro}
@@ -73,7 +81,7 @@ export default function App() {
         )}
 
         {!erro && aba === 'dashboard' && (
-          <Dashboard clientes={clientes} onAbrirFiltro={irParaClientesComFiltro} />
+          <Dashboard clientes={clientes} onAbrirFiltro={irParaClientesComFiltro} onAbrirDocumentos={() => setAba('documentos')} />
         )}
 
         {!erro && aba === 'clientes' && (
@@ -94,38 +102,6 @@ export default function App() {
 
         {!erro && aba === 'documentos' && <DocumentosNecessarios />}
       </main>
-
-      <nav className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
-        <div className="max-w-2xl mx-auto flex w-full">
-          <button
-            onClick={() => setAba('dashboard')}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${aba === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            <span className={`p-1.5 rounded-full ${aba === 'dashboard' ? 'bg-blue-50' : ''}`}>
-              <LayoutDashboard className="w-4 h-4" />
-            </span>
-            Dashboard
-          </button>
-          <button
-            onClick={() => setAba('clientes')}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${aba === 'clientes' ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            <span className={`p-1.5 rounded-full ${aba === 'clientes' ? 'bg-blue-50' : ''}`}>
-              <Users className="w-4 h-4" />
-            </span>
-            Atendimentos ({clientes.length})
-          </button>
-          <button
-            onClick={() => setAba('documentos')}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors ${aba === 'documentos' ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            <span className={`p-1.5 rounded-full ${aba === 'documentos' ? 'bg-blue-50' : ''}`}>
-              <FileText className="w-4 h-4" />
-            </span>
-            Docs
-          </button>
-        </div>
-      </nav>
 
       {clienteSelecionado && (
         <FichaCliente
