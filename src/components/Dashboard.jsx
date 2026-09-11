@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, AlertTriangle, CalendarClock, CheckCircle2, Archive, Users, FileText } from 'lucide-react';
+import { Clock, AlertTriangle, CalendarClock, CheckCircle2, Archive, Users, Workflow } from 'lucide-react';
 import { diasSemInteracao, diasEntre } from '../lib/helpers';
 
 function CardIndicador({ label, valor, icone: Icone, corIcone, corFundo, corTexto, onClick }) {
@@ -81,16 +81,20 @@ export default function Dashboard({ clientes, onAbrirFiltro, onAbrirDocumentos }
           corFundo="bg-slate-100" corIcone="text-slate-600" corTexto="text-slate-700"
           onClick={() => onAbrirFiltro(null, 'concluidos', '')}
         />
-        <button
-          onClick={onAbrirDocumentos}
-          className="text-left bg-white rounded-xl shadow-sm border border-slate-100 p-2.5 transition-all hover:shadow-md active:scale-[0.98] flex items-center gap-2"
-        >
-          <div className="w-6 h-6 rounded-full bg-violet-50 flex items-center justify-center shrink-0">
-            <FileText className="w-3.5 h-3.5 text-violet-600" />
-          </div>
-          <p className="text-[10px] font-bold text-violet-600 uppercase tracking-wide leading-tight">Documentos<br/>necessários</p>
-        </button>
       </div>
+
+      <button
+        onClick={onAbrirDocumentos}
+        className="w-full text-left bg-white rounded-xl shadow-sm border border-slate-100 p-3 transition-all hover:shadow-md active:scale-[0.99] flex items-center gap-3"
+      >
+        <div className="w-9 h-9 rounded-full bg-violet-50 flex items-center justify-center shrink-0">
+          <Workflow className="w-4.5 h-4.5 text-violet-600" />
+        </div>
+        <div>
+          <p className="text-xs font-bold text-violet-700">Processos & Documentos</p>
+          <p className="text-[10px] text-slate-400">Fluxograma de cada processo e documentação necessária</p>
+        </div>
+      </button>
 
       {consultores.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">

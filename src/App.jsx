@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { FileText, Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
+import { Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
 import { useCRMData } from './hooks/useCRMData';
 import Dashboard from './components/Dashboard';
 import ListaClientes from './components/ListaClientes';
 import FichaCliente from './components/FichaCliente';
 import ModalNovoCliente from './components/ModalNovoCliente';
-import DocumentosNecessarios from './components/DocumentosNecessarios';
+import CentralProcessos from './components/CentralProcessos';
 
 const TITULOS = {
   dashboard: 'Dashboard',
   clientes: 'Atendimentos',
-  documentos: 'Documentação Necessária',
+  documentos: 'Processos & Documentos',
 };
 
 export default function App() {
@@ -53,14 +53,6 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-300" />}
-            {aba === 'dashboard' && (
-              <button
-                onClick={() => setAba('documentos')}
-                className="flex bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold items-center gap-1 transition-colors"
-              >
-                <FileText className="w-3.5 h-3.5" /> Docs
-              </button>
-            )}
             {aba === 'clientes' && (
               <button
                 onClick={() => setModalNovoAberto(true)}
@@ -100,7 +92,7 @@ export default function App() {
           />
         )}
 
-        {!erro && aba === 'documentos' && <DocumentosNecessarios />}
+        {!erro && aba === 'documentos' && <CentralProcessos />}
       </main>
 
       {clienteSelecionado && (
