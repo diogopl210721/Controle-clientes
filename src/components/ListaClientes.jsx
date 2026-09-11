@@ -98,6 +98,18 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
     if (!error) onAtualizar();
   };
 
+  const [encerrando, setEncerrando] = useState(false);
+  const encerrarAtendimento = async () => {
+    if (!window.confirm(`Encerrar o atendimento de ${c.razao_social}? Ele vai pra aba Concluídos.`)) return;
+    setEncerrando(true);
+    const payload = { cliente_id: c.id, encerrado: true, encerrado_em: new Date().toISOString(), updated_at: new Date().toISOString() };
+    const { error } = c.acompanhamento?.id
+      ? await supabase.from('acompanhamento').update(payload).eq('id', c.acompanhamento.id)
+      : await supabase.from('acompanhamento').insert(payload);
+    setEncerrando(false);
+    if (!error) onAtualizar();
+  };
+
   const parar = (e) => e.stopPropagation();
 
   return (
@@ -204,6 +216,14 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
           )}
           <div className="flex items-center gap-1.5">
             <BotoesContato telefone={c.telefone} endereco={endereco} tamanho="compacto" />
+            <button
+              onClick={encerrarAtendimento}
+              disabled={encerrando}
+              className="text-slate-300 hover:text-emerald-600 p-0.5 disabled:opacity-40"
+              title="Encerrar atendimento"
+            >
+              {encerrando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+            </button>
             <button onClick={() => onAbrir(c)} className="text-slate-300 hover:text-slate-600 p-0.5" title="Abrir ficha completa">
               <ChevronRight className="w-4 h-4" />
             </button>
