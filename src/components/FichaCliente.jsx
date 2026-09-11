@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send, Loader2, Save, Trash2 } from 'lucide-react';
+import { X, Send, Loader2, Save, Trash2, Archive, RotateCcw } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { formatarDataHora, diasSemInteracao, statusInteracao, diasEntre } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
@@ -50,6 +50,7 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
   const [salvandoHistorico, setSalvandoHistorico] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [mudandoEncerramento, setMudandoEncerramento] = useState(false);
 
   const status = statusInteracao(cliente.acompanhamento?.ultima_interacao);
   const dias = diasSemInteracao(cliente.acompanhamento?.ultima_interacao);
@@ -135,6 +136,25 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
     if (!error) {
       await onAtualizar();
       onFechar();
+    }
+  };
+
+  const alternarEncerramento = async () => {
+    setMudandoEncerramento(true);
+    const encerrarAgora = !acomp.encerrado;
+    const payload = {
+      cliente_id: cliente.id,
+      encerrado: encerrarAgora,
+      encerrado_em: encerrarAgora ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = acomp.id
+      ? await supabase.from('acompanhamento').update(payload).eq('id', acomp.id)
+      : await supabase.from('acompanhamento').insert(payload);
+    setMudandoEncerramento(false);
+    if (!error) {
+      setAcomp((d) => ({ ...d, ...payload }));
+      onAtualizar();
     }
   };
 
@@ -229,6 +249,33 @@ export default function FichaCliente({ cliente, onFechar, onAtualizar }) {
                   <option key={p.valor} value={p.valor}>{p.label}</option>
                 ))}
               </select>
+            </div>
+            <div className="col-span-2 pt-1 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                {acomp.encerrado ? (
+                  <p className="text-[11px] text-slate-500">
+                    Atendimento encerrado em <span className="font-semibold">{formatarDataHora(acomp.encerrado_em)}</span>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-400">Atendimento em andamento</p>
+                )}
+              </div>
+              <button
+                onClick={alternarEncerramento}
+                disabled={mudandoEncerramento}
+                className={`text-[11px] font-bold flex items-center gap-1 px-2 py-1 rounded disabled:opacity-50 ${
+                  acomp.encerrado ? 'text-blue-600 hover:bg-blue-50' : 'text-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                {mudandoEncerramento ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : acomp.encerrado ? (
+                  <RotateCcw className="w-3.5 h-3.5" />
+                ) : (
+                  <Archive className="w-3.5 h-3.5" />
+                )}
+                {acomp.encerrado ? 'Reabrir atendimento' : 'Encerrar atendimento'}
+              </button>
             </div>
           </Bloco>
 

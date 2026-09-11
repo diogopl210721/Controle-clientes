@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Clock, AlertTriangle, CalendarClock, CheckCircle2, Check } from 'lucide-react';
+import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Clock, AlertTriangle, CalendarClock, CheckCircle2, Check, Archive } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { statusInteracao, diasSemInteracao, diasEntre, formatarDataHora } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
@@ -217,15 +217,19 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
 export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCliente, onAtualizar }) {
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState(null); // null | 'parados' | 'vencimento'
+  const [aba, setAba] = useState('ativos'); // 'ativos' | 'concluidos'
+
+  const ativos = clientes.filter((c) => !c.acompanhamento?.encerrado);
+  const concluidos = clientes.filter((c) => c.acompanhamento?.encerrado);
 
   const comMetricas = useMemo(
     () =>
-      clientes.map((c) => ({
+      ativos.map((c) => ({
         ...c,
         _diasSemContato: diasSemInteracao(c.acompanhamento?.ultima_interacao),
         _diasContrato: c.contrato?.data_termino ? diasEntre(c.contrato.data_termino) : null,
       })),
-    [clientes]
+    [ativos]
   );
 
   const totalParados = comMetricas.filter((c) => c._diasSemContato !== null && c._diasSemContato >= 5).length;
@@ -252,25 +256,44 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
       });
   }, [comMetricas, busca, filtro]);
 
+  const concluidosFiltrados = useMemo(() => {
+    const termo = busca.toLowerCase();
+    if (!termo) return concluidos;
+    return concluidos.filter(
+      (c) =>
+        c.razao_social?.toLowerCase().includes(termo) ||
+        c.codigo_cliente?.toLowerCase().includes(termo) ||
+        c.nome_fantasia?.toLowerCase().includes(termo)
+    );
+  }, [concluidos, busca]);
+
+  const reabrir = async (c) => {
+    const payload = { cliente_id: c.id, encerrado: false, encerrado_em: null, updated_at: new Date().toISOString() };
+    const { error } = c.acompanhamento?.id
+      ? await supabase.from('acompanhamento').update(payload).eq('id', c.acompanhamento.id)
+      : await supabase.from('acompanhamento').insert(payload);
+    if (!error) onAtualizar();
+  };
+
   const alternarFiltro = (valor) => setFiltro((atual) => (atual === valor ? null : valor));
 
   return (
     <div className="space-y-3">
       {/* Indicadores — clicáveis para filtrar a lista abaixo */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <button
-          onClick={() => setFiltro(null)}
-          className={`text-left bg-white border rounded-lg p-2.5 ${filtro === null ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200'}`}
+          onClick={() => { setAba('ativos'); setFiltro(null); }}
+          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'ativos' && filtro === null ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200'}`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-500">Total de clientes</span>
+            <span className="text-[10px] font-semibold text-slate-500">Total ativos</span>
             <Clock className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <p className="text-lg font-bold text-blue-600">{clientes.length}</p>
+          <p className="text-lg font-bold text-blue-600">{ativos.length}</p>
         </button>
         <button
-          onClick={() => alternarFiltro('parados')}
-          className={`text-left bg-white border rounded-lg p-2.5 ${filtro === 'parados' ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'}`}
+          onClick={() => { setAba('ativos'); alternarFiltro('parados'); }}
+          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'ativos' && filtro === 'parados' ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-200'}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold text-slate-500">Parados &gt; 5 dias</span>
@@ -279,8 +302,8 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
           <p className="text-lg font-bold text-red-600">{totalParados}</p>
         </button>
         <button
-          onClick={() => alternarFiltro('vencimento')}
-          className={`text-left bg-white border rounded-lg p-2.5 ${filtro === 'vencimento' ? 'border-orange-400 ring-1 ring-orange-400' : 'border-slate-200'}`}
+          onClick={() => { setAba('ativos'); alternarFiltro('vencimento'); }}
+          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'ativos' && filtro === 'vencimento' ? 'border-orange-400 ring-1 ring-orange-400' : 'border-slate-200'}`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold text-slate-500">Contratos &lt; 90 dias</span>
@@ -295,6 +318,32 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
           </div>
           <p className="text-lg font-bold text-emerald-600">{totalEmDia}</p>
         </div>
+        <button
+          onClick={() => setAba('concluidos')}
+          className={`text-left bg-white border rounded-lg p-2.5 ${aba === 'concluidos' ? 'border-slate-400 ring-1 ring-slate-400' : 'border-slate-200'}`}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-slate-500">Atendimentos concluídos</span>
+            <Archive className="w-3.5 h-3.5 text-slate-500" />
+          </div>
+          <p className="text-lg font-bold text-slate-600">{concluidos.length}</p>
+        </button>
+      </div>
+
+      {/* Abas */}
+      <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
+        <button
+          onClick={() => setAba('ativos')}
+          className={`flex-1 text-xs font-bold py-1.5 rounded-md ${aba === 'ativos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+        >
+          Atendimentos ({ativos.length})
+        </button>
+        <button
+          onClick={() => setAba('concluidos')}
+          className={`flex-1 text-xs font-bold py-1.5 rounded-md ${aba === 'concluidos' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+        >
+          Concluídos ({concluidos.length})
+        </button>
       </div>
 
       <div className="flex gap-2">
@@ -308,18 +357,22 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
             className="w-full pl-8 pr-2 py-2 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
           />
         </div>
-        <button
-          onClick={() => alternarFiltro('parados')}
-          className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'parados' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}
-        >
-          &gt;5d
-        </button>
-        <button
-          onClick={() => alternarFiltro('vencimento')}
-          className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'vencimento' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200'}`}
-        >
-          &lt;90d
-        </button>
+        {aba === 'ativos' && (
+          <>
+            <button
+              onClick={() => alternarFiltro('parados')}
+              className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'parados' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-500 border-slate-200'}`}
+            >
+              &gt;5d
+            </button>
+            <button
+              onClick={() => alternarFiltro('vencimento')}
+              className={`shrink-0 px-2.5 rounded-lg text-[11px] font-bold border ${filtro === 'vencimento' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200'}`}
+            >
+              &lt;90d
+            </button>
+          </>
+        )}
         <button
           onClick={onNovoCliente}
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"
@@ -328,14 +381,40 @@ export default function ListaClientes({ clientes, onSelecionarCliente, onNovoCli
         </button>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
-        {filtrados.length === 0 && (
-          <p className="text-xs text-slate-400 p-4 text-center">Nenhum cliente encontrado.</p>
-        )}
-        {filtrados.map((c) => (
-          <LinhaCliente key={c.id} cliente={c} onAbrir={onSelecionarCliente} onAtualizar={onAtualizar} />
-        ))}
-      </div>
+      {aba === 'ativos' && (
+        <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
+          {filtrados.length === 0 && (
+            <p className="text-xs text-slate-400 p-4 text-center">Nenhum cliente encontrado.</p>
+          )}
+          {filtrados.map((c) => (
+            <LinhaCliente key={c.id} cliente={c} onAbrir={onSelecionarCliente} onAtualizar={onAtualizar} />
+          ))}
+        </div>
+      )}
+
+      {aba === 'concluidos' && (
+        <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
+          {concluidosFiltrados.length === 0 && (
+            <p className="text-xs text-slate-400 p-4 text-center">Nenhum atendimento concluído ainda.</p>
+          )}
+          {concluidosFiltrados.map((c) => (
+            <div key={c.id} className="px-3 py-2.5 flex items-center gap-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-slate-700 truncate">{c.razao_social}</p>
+                <p className="text-[10px] text-slate-400 truncate">
+                  {c.codigo_cliente}{c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''} · Encerrado em {formatarDataHora(c.acompanhamento?.encerrado_em)}
+                </p>
+              </div>
+              <button onClick={() => reabrir(c)} className="text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded shrink-0">
+                Reabrir
+              </button>
+              <button onClick={() => onSelecionarCliente(c)} className="text-slate-300 hover:text-slate-600 p-0.5 shrink-0">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

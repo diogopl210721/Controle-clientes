@@ -16,7 +16,7 @@ export function useCRMData() {
         *,
         contratos ( * ),
         acompanhamento ( * ),
-        historico ( id, descricao, created_at )
+        historico ( * )
       `)
       .order('razao_social', { ascending: true });
 
