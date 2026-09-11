@@ -166,46 +166,52 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
           )}
 
           {/* Adicionar/continuar assunto direto na lista */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5" onClick={parar}>
-            {abertos.length > 0 && (
+          <div className="mt-1.5 space-y-1.5" onClick={parar}>
+            <div className="flex items-center justify-between gap-1.5">
+              {abertos.length > 0 ? (
+                <select
+                  value={alvoContinuar}
+                  onChange={(e) => setAlvoContinuar(e.target.value)}
+                  className="min-w-0 flex-1 text-[10px] border border-slate-200 rounded px-1.5 py-1 focus:outline-none"
+                >
+                  <option value="">+ Novo assunto</option>
+                  {abertos.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      Continuar: {h.descricao.slice(0, 24)}{h.descricao.length > 24 ? '…' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span />
+              )}
               <select
-                value={alvoContinuar}
-                onChange={(e) => setAlvoContinuar(e.target.value)}
-                className="shrink-0 text-[10px] border border-slate-200 rounded px-1 py-1 max-w-[110px] focus:outline-none"
+                value={prioridade}
+                onChange={(e) => mudarPrioridade(e.target.value)}
+                disabled={salvandoPrioridade}
+                className={`shrink-0 text-[10px] font-semibold rounded border px-1.5 py-1 focus:outline-none ${CORES_PRIORIDADE[prioridade]}`}
               >
-                <option value="">+ Novo assunto</option>
-                {abertos.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    Continuar: {h.descricao.slice(0, 24)}{h.descricao.length > 24 ? '…' : ''}
-                  </option>
+                {PRIORIDADES.map((p) => (
+                  <option key={p.valor} value={p.valor}>{p.label}</option>
                 ))}
               </select>
-            )}
-            <input
-              type="text"
-              placeholder={alvoContinuar ? 'Adicionar atualização...' : 'Escrever novo assunto...'}
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && enviar()}
-              className="flex-1 min-w-[100px] px-2 py-1 text-[11px] border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none"
-            />
-            <button
-              onClick={enviar}
-              disabled={enviando || !nota.trim()}
-              className="text-blue-600 hover:text-blue-700 disabled:opacity-30 shrink-0 p-1"
-            >
-              {enviando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </button>
-            <select
-              value={prioridade}
-              onChange={(e) => mudarPrioridade(e.target.value)}
-              disabled={salvandoPrioridade}
-              className={`shrink-0 text-[10px] font-semibold rounded border px-1 py-1 focus:outline-none ${CORES_PRIORIDADE[prioridade]}`}
-            >
-              {PRIORIDADES.map((p) => (
-                <option key={p.valor} value={p.valor}>{p.label}</option>
-              ))}
-            </select>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                placeholder={alvoContinuar ? 'Adicionar atualização...' : 'Escrever novo assunto...'}
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && enviar()}
+                className="flex-1 min-w-0 px-2 py-1.5 text-[11px] border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              />
+              <button
+                onClick={enviar}
+                disabled={enviando || !nota.trim()}
+                className="text-blue-600 hover:text-blue-700 disabled:opacity-30 shrink-0 p-1"
+              >
+                {enviando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
         </div>
 
