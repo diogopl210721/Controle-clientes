@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Send, Loader2, ChevronRight, Clock, AlertTriangle, CalendarClock, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Send, Loader2, ChevronRight, ChevronDown, Clock, AlertTriangle, CalendarClock, CheckCircle2, Check } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { statusInteracao, diasSemInteracao, diasEntre } from '../lib/helpers';
+import { statusInteracao, diasSemInteracao, diasEntre, formatarDataHora } from '../lib/helpers';
 import { PRIORIDADES } from '../lib/fases';
 import BotoesContato from './BotoesContato';
 
@@ -17,27 +17,75 @@ const CORES_PRIORIDADE = {
   urgente: 'text-red-600 border-red-300 bg-red-50',
 };
 
+function ItemAssunto({ item, onMarcar, marcando }) {
+  return (
+    <div className="flex items-start gap-2 py-1.5">
+      <button
+        onClick={() => onMarcar(item, !item.resolvido)}
+        disabled={marcando}
+        className={`mt-0.5 w-4 h-4 rounded border shrink-0 flex items-center justify-center ${item.resolvido ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 hover:border-blue-400'}`}
+        title={item.resolvido ? 'Reabrir assunto' : 'Marcar como concluído'}
+      >
+        {item.resolvido && <Check className="w-3 h-3 text-white" />}
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className={`text-[11px] whitespace-pre-line break-words ${item.resolvido ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+          {item.descricao}
+        </p>
+        {item.resolvido && item.resolvido_em && (
+          <p className="text-[9px] text-emerald-600 font-semibold">Concluído em {formatarDataHora(item.resolvido_em)}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
   const [nota, setNota] = useState('');
+  const [alvoContinuar, setAlvoContinuar] = useState(''); // '' = novo assunto | id de um assunto aberto
   const [enviando, setEnviando] = useState(false);
+  const [marcandoId, setMarcandoId] = useState(null);
   const [salvandoPrioridade, setSalvandoPrioridade] = useState(false);
+  const [expandido, setExpandido] = useState(false);
+  const [mostrarConcluidos, setMostrarConcluidos] = useState(false);
 
   const status = statusInteracao(c.acompanhamento?.ultima_interacao);
   const dias = diasSemInteracao(c.acompanhamento?.ultima_interacao);
-  const [notaAtual, notaAnterior] = c.historico || [];
   const endereco = c.contrato?.endereco_entrega || c.endereco;
   const diasContrato = c.contrato?.data_termino ? diasEntre(c.contrato.data_termino) : null;
   const prioridade = c.acompanhamento?.prioridade || 'normal';
 
-  const enviarNota = async () => {
+  const abertos = (c.historico || []).filter((h) => !h.resolvido);
+  const concluidos = (c.historico || []).filter((h) => h.resolvido);
+
+  const enviar = async () => {
     if (!nota.trim()) return;
     setEnviando(true);
-    const { error } = await supabase.from('historico').insert({ cliente_id: c.id, descricao: nota.trim() });
+    let error;
+    if (alvoContinuar) {
+      const atual = abertos.find((h) => h.id === alvoContinuar);
+      const novaDescricao = `${atual?.descricao || ''}\n${formatarDataHora(new Date())} — ${nota.trim()}`;
+      ({ error } = await supabase.from('historico').update({ descricao: novaDescricao }).eq('id', alvoContinuar));
+    } else {
+      ({ error } = await supabase.from('historico').insert({ cliente_id: c.id, descricao: nota.trim() }));
+    }
     setEnviando(false);
     if (!error) {
       setNota('');
+      setAlvoContinuar('');
+      setExpandido(true);
       onAtualizar();
     }
+  };
+
+  const marcar = async (item, resolvido) => {
+    setMarcandoId(item.id);
+    const { error } = await supabase
+      .from('historico')
+      .update({ resolvido, resolvido_em: resolvido ? new Date().toISOString() : null })
+      .eq('id', item.id);
+    setMarcandoId(null);
+    if (!error) onAtualizar();
   };
 
   const mudarPrioridade = async (valor) => {
@@ -65,30 +113,71 @@ function LinhaCliente({ cliente: c, onAbrir, onAtualizar }) {
             {c.codigo_cliente}{c.nome_fantasia ? ` · ${c.nome_fantasia}` : ''}{c.nome_contato ? ` · ${c.nome_contato}` : ''}
           </p>
 
-          {/* Antes / Atual — para acompanhar a evolução do caso */}
-          <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-            <div className="border border-slate-200 rounded p-1.5 bg-slate-50">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">Antes</p>
-              <p className="text-[11px] text-slate-600 break-words">{notaAnterior?.descricao || '—'}</p>
-            </div>
-            <div className="border border-blue-200 rounded p-1.5 bg-blue-50">
-              <p className="text-[9px] font-bold text-blue-400 uppercase tracking-wide mb-0.5">Atual</p>
-              <p className="text-[11px] text-slate-700 break-words">{notaAtual?.descricao || '—'}</p>
-            </div>
-          </div>
+          {/* Resumo de assuntos — clique para expandir */}
+          <button onClick={() => setExpandido((v) => !v)} className="flex items-center gap-1 mt-1">
+            {expandido ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
+            {abertos.length > 0 ? (
+              <span className="text-[11px] font-semibold text-amber-700">{abertos.length} assunto{abertos.length > 1 ? 's' : ''} em aberto</span>
+            ) : (
+              <span className="text-[11px] text-emerald-600 font-semibold">Nenhum assunto em aberto</span>
+            )}
+          </button>
 
-          {/* Adicionar anotação direto na lista */}
-          <div className="flex items-center gap-1.5 mt-1.5" onClick={parar}>
+          {expandido && (
+            <div className="mt-1 border border-slate-100 rounded-lg bg-slate-50 px-2 divide-y divide-slate-200">
+              {abertos.length === 0 && concluidos.length === 0 && (
+                <p className="text-[11px] text-slate-400 py-2">Nenhum registro ainda.</p>
+              )}
+              {abertos.map((item) => (
+                <ItemAssunto key={item.id} item={item} onMarcar={marcar} marcando={marcandoId === item.id} />
+              ))}
+
+              {concluidos.length > 0 && (
+                <div className="py-1">
+                  <button
+                    onClick={() => setMostrarConcluidos((v) => !v)}
+                    className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 py-1"
+                  >
+                    {mostrarConcluidos ? 'Ocultar' : 'Ver'} concluídos ({concluidos.length})
+                  </button>
+                  {mostrarConcluidos && (
+                    <div className="divide-y divide-slate-200">
+                      {concluidos.map((item) => (
+                        <ItemAssunto key={item.id} item={item} onMarcar={marcar} marcando={marcandoId === item.id} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Adicionar/continuar assunto direto na lista */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5" onClick={parar}>
+            {abertos.length > 0 && (
+              <select
+                value={alvoContinuar}
+                onChange={(e) => setAlvoContinuar(e.target.value)}
+                className="shrink-0 text-[10px] border border-slate-200 rounded px-1 py-1 max-w-[110px] focus:outline-none"
+              >
+                <option value="">+ Novo assunto</option>
+                {abertos.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    Continuar: {h.descricao.slice(0, 24)}{h.descricao.length > 24 ? '…' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
-              placeholder="Escrever o que está acontecendo..."
+              placeholder={alvoContinuar ? 'Adicionar atualização...' : 'Escrever novo assunto...'}
               value={nota}
               onChange={(e) => setNota(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && enviarNota()}
-              className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              onKeyDown={(e) => e.key === 'Enter' && enviar()}
+              className="flex-1 min-w-[100px] px-2 py-1 text-[11px] border border-slate-200 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none"
             />
             <button
-              onClick={enviarNota}
+              onClick={enviar}
               disabled={enviando || !nota.trim()}
               className="text-blue-600 hover:text-blue-700 disabled:opacity-30 shrink-0 p-1"
             >
