@@ -1,116 +1,211 @@
-import React, { useState } from 'react';
-import { Loader2, AlertTriangle, ArrowLeft, Plus } from 'lucide-react';
-import { useCRMData } from './hooks/useCRMData';
-import Dashboard from './components/Dashboard';
-import ListaClientes from './components/ListaClientes';
-import FichaCliente from './components/FichaCliente';
-import ModalNovoCliente from './components/ModalNovoCliente';
-import CentralProcessos from './components/CentralProcessos';
-
-const TITULOS = {
-  dashboard: 'Dashboard',
-  clientes: 'Atendimentos',
-  documentos: 'Processos & Documentos',
-};
+import { useState } from "react";
+import {
+  LayoutDashboard,
+  Workflow,
+  Archive,
+  Plus,
+  RefreshCw,
+  ArrowLeft,
+  Command,
+  AlertCircle,
+} from "lucide-react";
+import { useCRMData } from "./hooks/useCRMData";
+import Dashboard from "./components/Dashboard";
+import ListaClientes from "./components/ListaClientes";
+import FichaCliente from "./components/FichaCliente";
+import ModalNovoCliente from "./components/ModalNovoCliente";
+import CentralProcessos from "./components/CentralProcessos";
 
 export default function App() {
   const { clientes, carregando, erro, recarregar } = useCRMData();
-  const [aba, setAba] = useState('dashboard'); // 'dashboard' | 'clientes' | 'documentos'
-  const [clienteSelecionadoId, setClienteSelecionadoId] = useState(null);
-  const [modalNovoAberto, setModalNovoAberto] = useState(false);
-  const [filtroClientes, setFiltroClientes] = useState(null); // null | 'parados' | 'vencimento'
-  const [subAbaClientes, setSubAbaClientes] = useState('ativos'); // 'ativos' | 'concluidos'
-  const [consultorClientes, setConsultorClientes] = useState('');
-
-  const clienteSelecionado = clientes.find((c) => c.id === clienteSelecionadoId) || null;
-
-  const atualizarEFechar = async () => {
-    await recarregar();
+  const [aba, setAba] = useState("dashboard");
+  const [clienteId, setClienteId] = useState(null);
+  const [novo, setNovo] = useState(false);
+  const [filtro, setFiltro] = useState(null);
+  const [subAba, setSubAba] = useState("ativos");
+  const [consultor, setConsultor] = useState("");
+  const cliente = clientes.find((c) => c.id === clienteId);
+  const abrirLista = (f = null, sub = "ativos", nome = "") => {
+    setFiltro(f);
+    setSubAba(sub);
+    setConsultor(nome);
+    setAba("clientes");
   };
-
-  const irParaClientesComFiltro = (filtro, subAba, consultor = '') => {
-    setFiltroClientes(filtro);
-    setSubAbaClientes(subAba);
-    setConsultorClientes(consultor);
-    setAba('clientes');
-  };
-
+  const titulo =
+    aba === "dashboard"
+      ? "Meu dia"
+      : aba === "documentos"
+        ? "Processos e documentos"
+        : subAba === "concluidos"
+          ? "Atendimentos concluídos"
+          : "Diário de atendimentos";
+  const concluido = aba === "clientes" && subAba === "concluidos";
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 text-white px-4 py-3.5 sticky top-0 z-30 shadow-lg shadow-slate-900/10">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            {aba !== 'dashboard' && (
-              <button
-                onClick={() => setAba('dashboard')}
-                className="text-slate-300 hover:text-white hover:bg-white/10 p-1.5 -ml-1 rounded-full shrink-0 transition-colors"
-                aria-label="Voltar"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <h1 className="font-bold text-sm tracking-tight truncate">{TITULOS[aba]}</h1>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-300" />}
-            {aba === 'clientes' && (
-              <button
-                onClick={() => setModalNovoAberto(true)}
-                className="hidden sm:flex bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-full text-xs font-bold items-center gap-1 shadow-sm shadow-blue-600/30 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> Novo Cliente
-              </button>
-            )}
-          </div>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <button
+          className="brand"
+          onClick={() => setAba("dashboard")}
+          aria-label="Controle Clientes — início"
+        >
+          <span className="brand-icon">
+            <Command size={25} />
+          </span>
+          <span>
+            <strong>Controle Clientes</strong>
+            <small>Seu diário de atendimentos</small>
+          </span>
+        </button>
+        <p className="nav-caption">SEU ESPAÇO DE TRABALHO</p>
+        <nav aria-label="Navegação principal">
+          <button
+            className={aba !== "documentos" && !concluido ? "active" : ""}
+            onClick={() => setAba("dashboard")}
+          >
+            <LayoutDashboard size={19} /> Meu dia
+          </button>
+          <button
+            className={aba === "documentos" ? "active" : ""}
+            onClick={() => setAba("documentos")}
+          >
+            <Workflow size={19} /> Processos e documentos
+          </button>
+          <button
+            className={concluido ? "active" : ""}
+            onClick={() => abrirLista(null, "concluidos")}
+          >
+            <Archive size={19} /> Concluídos
+          </button>
+        </nav>
+        <div className="sidebar-note">
+          <span className="accent-line" />
+          <p>
+            Cada conversa importa.
+            <br />
+            <strong>Cada próximo passo também.</strong>
+          </p>
         </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto p-3 pb-6">
-        {erro && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3 mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" /> {erro}
+      </aside>
+      <div className="workspace">
+        <header className="page-header">
+          <div>
+            <div className="eyebrow">RELACIONAMENTO & ACOMPANHAMENTO</div>
+            <div className="title-row">
+              {aba !== "dashboard" && (
+                <button
+                  className="icon-button"
+                  onClick={() => setAba("dashboard")}
+                  aria-label="Voltar ao início"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+              )}
+              <h1>{titulo}</h1>
+            </div>
+            <p>
+              {aba === "dashboard"
+                ? "Clareza para saber onde agir. Espaço para registrar cada avanço."
+                : aba === "documentos"
+                  ? "Seu passo a passo, sempre à mão."
+                  : consultor
+                    ? `Acompanhamento de ${consultor === "__sem_consultor__" ? "clientes sem consultor" : consultor}.`
+                    : "Converse, registre e acompanhe o que vem depois."}
+            </p>
           </div>
-        )}
-
-        {!erro && aba === 'dashboard' && (
-          <Dashboard clientes={clientes} onAbrirFiltro={irParaClientesComFiltro} onAbrirDocumentos={() => setAba('documentos')} />
-        )}
-
-        {!erro && aba === 'clientes' && (
-          <ListaClientes
-            clientes={clientes}
-            onSelecionarCliente={(c) => setClienteSelecionadoId(c.id)}
-            onNovoCliente={() => setModalNovoAberto(true)}
-            onAtualizar={recarregar}
-            filtro={filtroClientes}
-            onMudarFiltro={setFiltroClientes}
-            aba={subAbaClientes}
-            onMudarAba={setSubAbaClientes}
-            consultor={consultorClientes}
-            onMudarConsultor={setConsultorClientes}
-            onVoltarDashboard={() => setAba('dashboard')}
-          />
-        )}
-
-        {!erro && aba === 'documentos' && <CentralProcessos />}
-      </main>
-
-      {clienteSelecionado && (
+          <div className="header-actions">
+            <button
+              className="icon-button"
+              onClick={recarregar}
+              disabled={carregando}
+              aria-label="Atualizar dados"
+              title="Atualizar dados"
+            >
+              <RefreshCw size={18} className={carregando ? "spin" : ""} />
+            </button>
+            <button className="button primary" onClick={() => setNovo(true)}>
+              <Plus size={18} />
+              <span>Novo cliente</span>
+            </button>
+          </div>
+        </header>
+        <main>
+          {erro && (
+            <div className="notice error" role="alert">
+              <AlertCircle size={18} />
+              <span>{erro}</span>
+              <button onClick={recarregar}>Tentar novamente</button>
+            </div>
+          )}
+          {carregando && clientes.length === 0 ? (
+            <div className="empty-state">
+              <RefreshCw className="spin" />
+              <h2>Carregando seus atendimentos</h2>
+              <p>Preparando o seu dia.</p>
+            </div>
+          ) : (
+            <>
+              {aba === "dashboard" && (
+                <Dashboard
+                  clientes={clientes}
+                  onAbrirFiltro={abrirLista}
+                  onAbrirDocumentos={() => setAba("documentos")}
+                  onSelecionarCliente={(c) => setClienteId(c.id)}
+                  onNovoCliente={() => setNovo(true)}
+                />
+              )}
+              {aba === "clientes" && (
+                <ListaClientes
+                  clientes={clientes}
+                  onSelecionarCliente={(c) => setClienteId(c.id)}
+                  onNovoCliente={() => setNovo(true)}
+                  onAtualizar={recarregar}
+                  filtro={filtro}
+                  onMudarFiltro={setFiltro}
+                  aba={subAba}
+                  onMudarAba={setSubAba}
+                  consultor={consultor}
+                />
+              )}
+              {aba === "documentos" && (
+                <div className="legacy-content process-page">
+                  <CentralProcessos />
+                </div>
+              )}
+            </>
+          )}
+        </main>
+        <footer className="site-footer">
+          <span>Controle Clientes</span>
+          <span>
+            © Diogo Soares —{" "}
+            <a
+              href="https://www.ddsinovacao.com.br"
+              target="_blank"
+              rel="noreferrer"
+            >
+              www.ddsinovacao.com.br
+            </a>
+          </span>
+        </footer>
+      </div>
+      {cliente && (
         <FichaCliente
-          cliente={clienteSelecionado}
-          onFechar={() => setClienteSelecionadoId(null)}
-          onAtualizar={atualizarEFechar}
+          key={cliente.id}
+          cliente={cliente}
+          onFechar={() => setClienteId(null)}
+          onAtualizar={recarregar}
         />
       )}
-
-      {modalNovoAberto && (
-        <ModalNovoCliente
-          onFechar={() => setModalNovoAberto(false)}
-          onCriado={async () => {
-            setModalNovoAberto(false);
-            await recarregar();
-          }}
-        />
+      {novo && (
+        <div className="legacy-content">
+          <ModalNovoCliente
+            onFechar={() => setNovo(false)}
+            onCriado={async () => {
+              setNovo(false);
+              await recarregar();
+            }}
+          />
+        </div>
       )}
     </div>
   );
